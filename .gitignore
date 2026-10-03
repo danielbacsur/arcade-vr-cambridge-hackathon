@@ -1,0 +1,16 @@
+# Local credentials and deployment state
+.env
+.env.*
+.vercel/
+extension/config.json
+
+# Generated caches and archives
+__pycache__/
+*.py[cod]
+.DS_Store
+*.zip
+
+# Raw research traces and response headers
+*-log.txt
+*-headers.json
+test-events.json

@@ -1,0 +1,14 @@
+extension/config.json
+**/__pycache__/**
+*.png
+*.jpg
+*.jpeg
+*.zip
+*-test.json
+*-proof.*
+*-headers.json
+*-log.txt
+work/
+
+.env*
+EXPERIMENTS.md
