@@ -1,0 +1,32 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { request, type Server } from 'node:http';
+import { once } from 'node:events';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createApp } from '../src/server/app.js';
+import { injectPage } from '../src/server/proxy.js';
+import { resolveRouting } from '../src/server/routing.js';
+const servers: Server[] = [], directories: string[] = [];
+afterEach(async () => { for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); } for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true }); });
+async function setup(fetcher: typeof fetch) { const dir = await mkdtemp(join(tmpdir(), 'arcade-test-')); directories.push(dir); await mkdir(join(dir, '__arcade_vr')); await writeFile(join(dir, 'controller.html'), '<main>player wrapper</main>'); const server = createApp({ publicDirectory: dir, fetch: fetcher }); servers.push(server); server.listen(0, '127.0.0.1'); await once(server, 'listening'); const address = server.address(); if (!address || typeof address === 'string') throw Error(); return { url: `http://127.0.0.1:${address.port}`, host: `runtime.joinarcade.localhost:${address.port}` }; }
+async function localFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const client = request(url, { method: options.method, headers: Object.fromEntries(new Headers(options.headers)) }, incoming => {
+      const chunks: Buffer[] = [];
+      incoming.on('data', chunk => chunks.push(Buffer.from(chunk)));
+      incoming.on('end', () => resolve(new Response(Buffer.concat(chunks), { status: incoming.statusCode, headers: Object.fromEntries(Object.entries(incoming.headers).filter((entry): entry is [string, string] => typeof entry[1] === 'string')) })));
+    });
+    client.on('error', reject); client.end(typeof options.body === 'string' ? options.body : undefined);
+  });
+}
+describe('HTTP proxy integration', () => {
+  it('injects the runtime into multiplayer pages', () => { const r = resolveRouting('runtime.joinarcade.localhost:8765'); if (!r) throw Error(); expect(injectPage('<head></head><body></body>', r, '/mp')).toContain('runtime.js'); });
+  it('serves the multiplayer wrapper while preserving its query', async () => { const s = await setup(async () => { throw Error('Should not fetch upstream'); }); const response = await localFetch(s.url + '/mp?serverId=abc', { headers: { host: s.host.replace('runtime.', 'editor.') } }); expect(await response.text()).toContain('player wrapper'); });
+  it('passes signed asset URLs and Range headers without modification', async () => { let target = '', range = ''; const s = await setup(async (url, init) => { target = String(url); range = new Headers(init?.headers).get('range') || ''; return new Response(new Uint8Array([0, 1, 2]), { status: 206, headers: { 'content-type': 'application/octet-stream', 'content-range': 'bytes 0-2/20' } }); }); const response = await localFetch(s.url + '/__arcade_asset/storage/b/a%20b?sig=%2B%2F', { headers: { host: s.host, range: 'bytes=0-2' } }); expect(target).toBe('https://storage.googleapis.com/b/a%20b?sig=%2B%2F'); expect(range).toBe('bytes=0-2'); expect(response.status).toBe(206); expect(response.headers.get('content-range')).toBe('bytes 0-2/20'); expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([0, 1, 2])); });
+  it('translates origin and filters platform cookies and headers', async () => { let headers = new Headers(); const s = await setup(async (_url, init) => { headers = new Headers(init?.headers); return new Response('{}', { headers: { 'content-type': 'application/json' } }); }); await localFetch(s.url + '/data', { headers: { host: s.host, origin: `http://${s.host}`, 'x-vercel-secret': 'do-not-forward', cookie: '_vercel_jwt=secret; arcade=session' } }); expect(headers.get('origin')).toBe('https://editor.joinarcade.ai'); expect(headers.has('x-vercel-secret')).toBe(false); expect(headers.get('cookie')).toBe('arcade=session'); });
+  it('retries safe upstream failures and leaves writes unreplayed', async () => { let requests = 0; const s = await setup(async () => new Response('upstream', { status: ++requests < 3 ? 503 : 200 })); const response = await localFetch(s.url + '/asset', { headers: { host: s.host } }); expect(response.status).toBe(200); expect(requests).toBe(3); requests = 0; const write = await localFetch(s.url + '/write', { method: 'POST', body: '{}', headers: { host: s.host } }); expect(write.status).toBe(503); expect(requests).toBe(1); });
+  it('forwards redirect locations and refuses arbitrary asset hosts', async () => { const s = await setup(async () => new Response(null, { status: 302, headers: { location: 'https://editor.joinarcade.ai/mp?serverId=abc' } })); const redirect = await localFetch(s.url + '/old', { redirect: 'manual', headers: { host: s.host } }); expect(redirect.headers.get('location')).toBe(`http://${s.host}/mp?serverId=abc`); expect((await localFetch(s.url + '/__arcade_asset/evil/path', { headers: { host: s.host } })).status).toBe(403); });
+  it('does not reflect a foreign CORS origin', async () => { const s = await setup(async () => new Response('asset', { headers: { 'access-control-allow-origin': '*' } })); const response = await localFetch(s.url + '/asset', { headers: { host: s.host, origin: 'https://evil.com' } }); expect(response.headers.has('access-control-allow-origin')).toBe(false); });
+  it('streams event sources without waiting for stream completion', async () => { const encoder = new TextEncoder(); const s = await setup(async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(encoder.encode('data: ready\n\n')); controller.close(); } }), { headers: { 'content-type': 'text/event-stream' } })); const response = await localFetch(s.url + '/events', { headers: { host: s.host } }); expect(await response.text()).toBe('data: ready\n\n'); });
+});

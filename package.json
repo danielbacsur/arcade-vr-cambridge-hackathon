@@ -1,0 +1,37 @@
+{
+  "name": "arcade-vr-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/server/dev.ts",
+    "build": "tsx scripts/build.ts",
+    "start": "node dist/server/dev.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "coverage:live": "tsx scripts/check-games.ts"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.13",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "@types/webxr": "^0.5.24",
+    "@types/ws": "^8.18.2",
+    "@webgpu/types": "^0.1.74",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "playcanvas": "^2.23.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}

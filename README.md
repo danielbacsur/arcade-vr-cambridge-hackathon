@@ -1,39 +1,39 @@
-# Arcade VR proxy · 0.8.0
+# Arcade VR proxy
 
-The original Arcade website is served through a fixed-host proxy. Paths and query parameters are preserved. Only the editor’s `/play/<uuid>` page is replaced with the player wrapper.
+The original Arcade site is served through a fixed-host TypeScript proxy. Paths and query strings stay intact. Editor `/play/<uuid>` and `/mp` routes open a minimal player wrapper; its isolated runtime keeps Arcade's game and UI.
 
-## Addresses
-
-| Original | Hosted proxy |
+| Original | Proxy |
 | --- | --- |
-| `www.tryarcade.com` | `www.tryarcade.danielbacsur.dev` |
-| `editor.joinarcade.ai` | `editor.joinarcade.danielbacsur.dev` |
-| `dashboard.joinarcade.ai` | `dashboard.joinarcade.danielbacsur.dev` |
+| www.tryarcade.com | www.tryarcade.danielbacsur.dev |
+| editor.joinarcade.ai | editor.joinarcade.danielbacsur.dev |
+| dashboard.joinarcade.ai | dashboard.joinarcade.danielbacsur.dev |
 
-`runtime.joinarcade.danielbacsur.dev` contains the isolated original game with the injected engine adapter. `api.joinarcade.danielbacsur.dev` forwards only Arcade’s fixed API upstream. The existing domain root is a separate website.
+The runtime, API and storage use `runtime.joinarcade`, `api.joinarcade` and `storage.joinarcade` under the same domain. Unknown hosts and arbitrary asset destinations are rejected.
+
+## Develop
+
+Use Node 22 or newer. Python is unnecessary.
+
+```sh
+npm ci
+npm run check
+npm run dev
+```
+
+Open `http://localhost:8765`. Editor URLs use `http://editor.joinarcade.localhost:8765` with the original path and query. The server serves the latest build; rebuild after editing browser adapters. `npm start` runs the compiled server.
+
+`npm run check` runs strict TypeScript, ESLint, integration tests and the production build. Dependencies and the lockfile are tracked; generated output, local credentials and diagnostic captures are ignored.
 
 ## Player
 
-Mode selection uses `navigator.xr.isSessionSupported('immersive-vr')`, with no manual override. Desktop shows equally sized 16:9 live and first-person views on a black first viewport, and controls below. The game iframe has a fixed 1920 × 1080 CSS viewport scaled into its preview; the head canvas also has a 1920 × 1080 output. Arcade’s HUD therefore keeps its normal desktop proportions. The default debug scene renders at 960 × 540 and the extra camera updates at up to 30 fps, independently of the DOM layout. VR uses native WebGPU XR where supported, otherwise a WebGL XR display fed by Arcade’s WebGPU stereo cameras. Connection retries automatically. Drag the first-person view to look around. Movement follows its heading; the real character’s body and head follow directly. The avatar is hidden from its own camera.
+Desktop has matching 16:9 live and head views with controls below. Both retain a 1920 × 1080 layout while the scene's render budget is adjustable independently. Head-view dragging controls the character's look; movement follows its heading. Connection is automatic. Mode selection detects immersive WebXR support without a manual override.
 
-The Enter VR button appears after the game world is ready. Tapping it requests the immersive session; loading cannot open that browser prompt automatically. Browsers with XRGPUBinding use the engine’s native XR camera. Other VR browsers, including the standard Quest path, retain Arcade’s required WebGPU renderer and transfer a side-by-side stereo ImageBitmap to a separate WebGL XR layer. Headset poses drive both eye transforms, projection matrices and character head direction; the left controller stick supplies movement. The bridge drives game updates from the headset clock because ordinary window animation frames may pause during immersion. Only the eye cameras render during the session. Exiting restores the original animation loop and first-person canvas. Eye resolution is capped at 1536 × 2048 per eye pending Quest performance measurements. Actual headset entry, latency, performance and controller interaction remain unverified on hardware.
+Arcade requires WebGPU. Keep it enabled even on browsers without `XRGPUBinding`. The Quest rendering, tracking, hands and UI work is recorded in [the delivery checklist](docs/TODO.md). Hardware performance and comfort require a real headset; simulated checks are not hardware verification.
 
-The previous bootstrap removed navigator.gpu when XRGPUBinding was absent. Arcade is WebGPU-only, so that caused the loading stall. The bootstrap now leaves navigator.gpu intact. An experimental WebGL conversion degraded terrain/materials and was discarded.
+## Deploy
 
-Desktop debug retains the original camera and an offscreen head camera. GPU copies deliver the head camera to the wrapper. First-person production rendering disables native cameras and renders only the injected camera. Resolution, color and diagnostics are below the desktop views.
+Vercel builds `api/index.ts` and the browser adapters. Attach all listed hostnames plus runtime, API and storage to the same project. WebSockets require Vercel Fluid Compute's native WebSocket support, currently public beta, or an ordinary Node server. Long-lived multiplayer connections must reconnect when the platform's function duration expires. The game's protocol owns reconnection; input packets are never replayed by the proxy.
 
-## Local run
+Binary assets and event streams are forwarded without buffering the entire response. Signed query strings and Range requests are preserved. Failed safe reads receive bounded retries; writes are never automatically replayed. Cookies and origin headers are translated only within the known Arcade host family. Vercel platform credentials are removed before upstream requests.
 
-Run `python3 server.py` in this folder, then open `http://localhost:8765`. Local editor addresses use `editor.joinarcade.localhost:8765`, with identical paths. The browser extension is unnecessary for the proxy workflow. The older separate extension/relay experiments remain available at `/lab.html`; their local capability file is excluded from deployment.
-
-## Vercel
-
-`api/index.py` adapts the fixed-host Python proxy. Native external rewrites forward engine libraries and Google Storage assets. Editor and storefront bundles pass through text rewriting, with gzip compression for large bundles; popup location assignments are also mapped, covering Arcade’s asynchronous blank-tab launch. Injected network mapping keeps API calls on the proxy, even when the frontend bundles are served without text rewriting. Each custom hostname must belong to the new `arcade-vr-proxy` project.
-
-Sessions use host-only cookies. Request origins are translated to their fixed upstream equivalents; CORS responses are translated back only for recognized proxy hosts. Unknown incoming hosts are rejected. Logging omits query strings.
-
-Public browsing and games are the verified scope. Account login, editor saving, multiplayer/WebSocket flows, voice chat and native Quest operation need separate validation. The proxy is not an arbitrary upstream gateway.
-
-## Earlier performance evidence
-
-The first-person-only desktop prototype measured approximately 57 fps at 720p and 54 fps at 1080p for transferred GPU frames, compared with 12 fps at 640 × 360 using CPU pixels. Those figures are from the earlier one-camera mode, not the new two-camera debug mode or Quest hardware. The experimental WebRTC transfer failed and is not exposed in the current UI. Historical notes in `EXPERIMENTS.md` describe superseded prototypes and are not the current feature contract.
+No proxy can guarantee private, deleted, expired or broken upstream games. Compatibility reports must separate proxy failures from upstream and authentication failures. Nothing from the current delivery is pushed or published before review.
