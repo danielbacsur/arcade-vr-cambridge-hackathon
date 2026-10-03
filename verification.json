@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-03",
+  "checks": [
+    "Unauthenticated relay read rejected",
+    "Unknown command rejected",
+    "Unapproved web origin rejected",
+    "Command queue round trip passed",
+    "Commands drained once",
+    "Saved live scene contains 473 entities"
+  ],
+  "syntax": "Python and all JavaScript files parsed successfully",
+  "limits": [
+    "No Quest session tested",
+    "Proxy game loading fails at the backend origin boundary",
+    "Camera writes do not establish sustained ownership"
+  ]
+}
