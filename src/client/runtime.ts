@@ -35,4 +35,4 @@ window.addEventListener('message', event => {
   void execute(request).then(result => parent.postMessage({ channel: CHANNEL, direction: 'response', id: request.id, session, ok: true, result }, event.origin)).catch(error => parent.postMessage({ channel: CHANNEL, direction: 'response', id: request.id, session, ok: false, error: error instanceof Error ? error.message : String(error) }, event.origin));
 });
 window.addEventListener('pagehide', () => engine.stop());
-const style = document.createElement('style'); style.textContent = 'html,body{margin:0;background:#000}.arcade-xr-active,.arcade-xr-active body,.arcade-xr-active #root{background:transparent!important}.arcade-xr-active canvas{visibility:hidden!important}'; document.head.append(style);
+const style = document.createElement('style'); style.textContent = 'html,body{margin:0;background:#000}.arcade-xr-active,.arcade-xr-active body,.arcade-xr-active #root{background:transparent!important}.arcade-xr-active canvas[data-arcade-vr-engine="true"]{visibility:hidden!important}'; document.head.append(style);

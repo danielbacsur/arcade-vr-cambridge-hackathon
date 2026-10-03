@@ -8,7 +8,7 @@ Work through these tasks in order. Significant changes get separate commits. Do 
 - [x] Request immersive entry at game readiness when the browser permits it; otherwise reuse the game's existing Start interaction, with no redundant entry button. Do not bypass browser consent or user activation requirements.
 - [x] Correct per-eye projection/aspect/resolution, remove animated head-bone camera anchoring, preserve consistent tracking space, synchronize frames and stabilize the world.
 - [x] Map controller grips and WebXR hand joints onto generic Mixamo arms/hands with calibrated inverse kinematics, missing-joint handling and pose restoration.
-- [ ] Preserve instructions and menus with WebXR DOM overlays where supported and a clickable in-world UI fallback.
+- [x] Preserve instructions and menus with WebXR DOM overlays where supported and a clickable in-world UI fallback.
 - [ ] Explore the actual Arcade editor and provide a working optional VR editing path using public editor integrations where available.
 - [ ] Build a finite set of useful hackathon extras in isolated branches/worktrees, test them, and prepare merge instructions without merging or pushing.
 - [ ] Produce accurate flowcharts, illustrations and hackathon-ready documentation aligned with https://about.tryarcade.com/hackathon.
@@ -30,3 +30,5 @@ No Quest is available during implementation. Simulator tests validate math, fram
 - Immersive core: same-document activation and session ownership, native per-eye projection, headset frame clock, bounded stereo GPU capture and rotational reprojection implemented. Hand and UI fallback work follows; hardware remains unverified.
 
 - Hand mapping: 41 checks pass, including real PlayCanvas graph IK, unreachable/missing tracking, nonhumanoid fallback and restoration of original animation transforms. Mapping is local rendering; remote hand replication requires an Arcade multiplayer protocol extension.
+
+- UI: browser compiled both stereo/panel shaders and a world-panel ray clicked the original DOM button. DOM overlay plus a PlayCanvas HUD panel preserves both UI systems; controller select maps buttons and legacy canvas input, left menu reanchors. Device support and cross-origin iframe/complex CSS capture remain validation boundaries.
