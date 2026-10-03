@@ -1,0 +1,119 @@
+{
+  "headCameraRemoved": true,
+  "cameras": [
+    {
+      "name": "Camera",
+      "enabled": false,
+      "layers": [
+        0,
+        1,
+        2,
+        4,
+        3,
+        9
+      ],
+      "position": {
+        "x": 1.3479588031768799,
+        "y": 13.021875381469727,
+        "z": 17.65028953552246
+      }
+    },
+    {
+      "name": "PlayCamera:fps",
+      "enabled": false,
+      "layers": [
+        0,
+        1,
+        2,
+        4,
+        3
+      ],
+      "position": {
+        "x": -0.1899999976158142,
+        "y": 5.71999979019165,
+        "z": -3.7200000286102295
+      }
+    },
+    {
+      "name": "PlayCamera:tps",
+      "enabled": true,
+      "layers": [
+        0,
+        1,
+        2,
+        4,
+        3
+      ],
+      "position": {
+        "x": 3.5272250175476074,
+        "y": 7.609607219696045,
+        "z": 0.6241909861564636
+      }
+    },
+    {
+      "name": "PlayCamera:scene",
+      "enabled": false,
+      "layers": [
+        0,
+        1,
+        2,
+        4,
+        3
+      ],
+      "position": {
+        "x": 0,
+        "y": 25,
+        "z": 40
+      }
+    },
+    {
+      "name": "OutlineCamera",
+      "enabled": false,
+      "layers": [
+        5
+      ],
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "name": "OutlineCamera",
+      "enabled": false,
+      "layers": [
+        6
+      ],
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "name": "OutlineCamera",
+      "enabled": false,
+      "layers": [
+        7
+      ],
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "name": "MinimapCamera",
+      "enabled": true,
+      "layers": [
+        0,
+        2
+      ],
+      "position": {
+        "x": 0,
+        "y": 731.5233764648438,
+        "z": 0
+      }
+    }
+  ]
+}

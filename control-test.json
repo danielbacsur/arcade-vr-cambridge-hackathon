@@ -1,0 +1,117 @@
+{
+  "before": {
+    "connected": true,
+    "session": "d1a8a7ca-3f6c-4e59-90f8-3b0bc4bf26a9",
+    "player": {
+      "id": "956641d8-2d94-480e-93c5-61278f9b19d8",
+      "name": "player",
+      "position": {
+        "x": -0.19002170860767365,
+        "y": 3.9672341346740723,
+        "z": -3.7200255393981934
+      }
+    },
+    "head": {
+      "name": "mixamorig:Head",
+      "position": {
+        "x": -0.23477818071842194,
+        "y": 4.5305705070495605,
+        "z": -3.7376692295074463
+      }
+    },
+    "camera": {
+      "name": "HackathonPlayerHeadCamera",
+      "position": {
+        "x": -0.23477818071842194,
+        "y": 4.650570392608643,
+        "z": -4.087669372558594
+      },
+      "euler": {
+        "x": 0,
+        "y": -7.0167096047110005e-15,
+        "z": 0
+      }
+    },
+    "move": {
+      "x": 0,
+      "z": 0
+    },
+    "keys": [],
+    "frames": 4,
+    "streamError": null,
+    "inputSource": true,
+    "mainCamera": {
+      "name": "PlayCamera:tps",
+      "position": {
+        "x": -0.19002170860767365,
+        "y": 7.663697242736816,
+        "z": 0.609301745891571
+      },
+      "euler": {
+        "x": -20.053534859175517,
+        "y": -2.5393713025497622e-14,
+        "z": -1.5020839803558137e-22
+      }
+    }
+  },
+  "receivedBefore": 4,
+  "after": {
+    "connected": true,
+    "session": "d1a8a7ca-3f6c-4e59-90f8-3b0bc4bf26a9",
+    "player": {
+      "id": "956641d8-2d94-480e-93c5-61278f9b19d8",
+      "name": "player",
+      "position": {
+        "x": 3.577439308166504,
+        "y": 3.9090423583984375,
+        "z": -3.713491201400757
+      }
+    },
+    "head": {
+      "name": "mixamorig:Head",
+      "position": {
+        "x": 3.5829031467437744,
+        "y": 4.476171970367432,
+        "z": -3.71337890625
+      }
+    },
+    "camera": {
+      "name": "HackathonPlayerHeadCamera",
+      "position": {
+        "x": 3.5829031467437744,
+        "y": 4.596171855926514,
+        "z": -4.063378810882568
+      },
+      "euler": {
+        "x": 0,
+        "y": -7.0167096047110005e-15,
+        "z": 0
+      }
+    },
+    "move": {
+      "x": 0,
+      "z": 0
+    },
+    "keys": [],
+    "frames": 19,
+    "streamError": null,
+    "inputSource": true,
+    "mainCamera": {
+      "name": "PlayCamera:tps",
+      "position": {
+        "x": 3.577439308166504,
+        "y": 7.605505466461182,
+        "z": 0.6158360838890076
+      },
+      "euler": {
+        "x": -20.053534859175517,
+        "y": -2.7086625205055254e-14,
+        "z": -4.31157305148015e-22
+      }
+    }
+  },
+  "receivedAfter": 19,
+  "distance": 3.7679160677106776,
+  "cameraFollowing": true,
+  "passed": true
+}
