@@ -40,6 +40,7 @@ export class EngineController {
   private pitch = 0;
   private frames = 0;
   private frameTimes: number[] = [];
+  private captureTimes: number[] = [];
   private captureMs = 0;
   private lastCapture = 0;
   private lastInput = 0;
@@ -110,8 +111,9 @@ export class EngineController {
   ready(): boolean { const a = app(); return !!player() && !!a && (a.root.findComponents('render').length + a.root.findComponents('model').length) > 0; }
   status(): RuntimeState {
     const p = player(), now = performance.now(); this.frameTimes = this.frameTimes.filter(time => now - time < 2000);
+    this.captureTimes = this.captureTimes.filter(time => now - time < 2000); const captureElapsed = this.captureTimes.length > 1 ? now - (this.captureTimes[0] || now) : 0;
     const count = this.frameTimes.length, elapsed = count > 1 ? now - (this.frameTimes[0] || now) : 0;
-    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: !!this.xrPacket, supported: !!navigator.xr, mode: this.xrPacket ? 'same-runtime-webgpu-stereo' : 'flat', ui: this.xrUI, hands: this.trackedHands }, error: this.error };
+    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureFPS: captureElapsed > 0 ? (this.captureTimes.length - 1) * 1000 / captureElapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: !!this.xrPacket, supported: !!navigator.xr, mode: this.xrPacket ? 'same-runtime-webgpu-stereo' : 'flat', ui: this.xrUI, hands: this.trackedHands }, error: this.error };
   }
   connect(settings: RenderSettings): RuntimeState {
     const a = app(), pc = window.pc, p = player(), input = inputManager();
@@ -135,7 +137,7 @@ export class EngineController {
     }
     const direction = p.getRotation().transformVector(new pc.Vec3(0, 0, 1)); this.yaw = Math.atan2(-direction.x, -direction.z) * 180 / Math.PI; this.pitch = 0;
     this.source = { id: 'arcade-vr-input', attach() {}, detach() {}, lastActivityAt: () => Date.now(), readMove: out => { const h = this.yaw * Math.PI / 180, mainYaw = this.cameraYaw() * Math.PI / 180, m = this.movement, length = Math.max(1, Math.hypot(m.x, m.z)); const x = Math.cos(h) * m.x + Math.sin(h) * m.z, z = -Math.sin(h) * m.x + Math.cos(h) * m.z; out.x = (Math.cos(mainYaw) * x - Math.sin(mainYaw) * z) / length; out.z = (Math.sin(mainYaw) * x + Math.cos(mainYaw) * z) / length; return Math.abs(m.x) + Math.abs(m.z) > .001; }, consumeLook: out => { out.x = out.y = 0; }, consumeWheel: () => 0, isJump: () => this.keys.has('Space'), isSprint: () => this.keys.has('ShiftLeft'), isCrouch: () => this.keys.has('KeyC'), isKeyPressed: () => false, isCodePressed: code => this.keys.has(code), readActions: (out, bindings) => { for (const [action, codes] of Object.entries(bindings)) if (codes.some(code => this.keys.has(code))) out[action] = 1; }, releaseAll: () => this.release() };
-    input.addSource(this.source); this.connected = true; this.lastInput = performance.now(); this.frames = 0; this.frameTimes = []; this.error = null;
+    input.addSource(this.source); this.connected = true; this.lastInput = performance.now(); this.frames = 0; this.frameTimes = []; this.captureTimes = []; this.error = null;
     a.on('prerender', this.beforeRender); a.on('postrender', this.afterRender);
     this.originalFrameEnd = gd.frameEnd; const original = this.originalFrameEnd; gd.frameEnd = () => { original.call(gd); void this.capture(); };
     this.beforeRender(); return this.status();
@@ -186,7 +188,7 @@ export class EngineController {
       const encoder = device.createCommandEncoder(); if (captureUI && uiTexture?.impl?.gpuTexture && this.uiContext) encoder.copyTextureToTexture({ texture: uiTexture.impl.gpuTexture }, { texture: this.uiContext.getCurrentTexture() }, { width: 1920, height: 1080 }); encoder.copyTextureToTexture({ texture: texture.impl.gpuTexture }, { texture: this.captureContext.getCurrentTexture() }, { width: this.settings.width, height: this.settings.height }); device.queue.submit([encoder.finish()]);
       const [bitmap, hud] = await Promise.all([createImageBitmap(this.captureCanvas), captureUI && this.uiCanvas ? createImageBitmap(this.uiCanvas) : Promise.resolve(undefined)]);
       if (hud) { this.lastUIFrame = now; if (this.xrPacket) this.onUIFrame(hud); else hud.close(); } if (!this.connected || camera !== this.headCamera) { bitmap.close(); return; }
-      this.frames++; if (this.xrPacket && xrFrame) this.onXRFrame(bitmap, xrFrame); else { this.waitingAck = true; this.onFrame(bitmap, ++this.frameId); } this.captureMs = performance.now() - now;
+      this.frames++; this.captureTimes.push(performance.now()); if (this.xrPacket && xrFrame) this.onXRFrame(bitmap, xrFrame); else { this.waitingAck = true; this.onFrame(bitmap, ++this.frameId); } this.captureMs = performance.now() - now;
     } catch (error) { this.error = error instanceof Error ? error.message : String(error); } finally { this.busy = false; }
   }
   acknowledge(id: number): void { if (id === this.frameId) this.waitingAck = false; }

@@ -18,7 +18,7 @@ window.addEventListener('message', event => {
   const stream = data as unknown as StreamMessage;
   if (stream.type === 'state' && stream.state) { show(stream.state); if (immersive) { overlay.hidden = stream.state.ready; overlay.textContent = stream.state.error || 'Loading the game…'; } return; }
   if (stream.type === 'bitmap' && stream.bitmap instanceof ImageBitmap) {
-    try { if (stream.bitmap.width <= 1920 && stream.bitmap.height <= 1080) { context?.drawImage(stream.bitmap, 0, 0, view.width, view.height); view.dataset.frames = String(finite(Number(view.dataset.frames)) + 1); feed.textContent = `${stream.bitmap.width} × ${stream.bitmap.height} · ${Math.round(latest?.renderFPS || 0)} fps`; } } finally { stream.bitmap.close(); signal('controls.frameAck', { id: stream.id }); }
+    try { if (stream.bitmap.width <= 1920 && stream.bitmap.height <= 1080) { context?.drawImage(stream.bitmap, 0, 0, view.width, view.height); view.dataset.frames = String(finite(Number(view.dataset.frames)) + 1); feed.textContent = `${stream.bitmap.width} × ${stream.bitmap.height} · ${Math.round(latest?.captureFPS || 0)} fps`; } } finally { stream.bitmap.close(); signal('controls.frameAck', { id: stream.id }); }
   }
 });
 async function connect(): Promise<void> {

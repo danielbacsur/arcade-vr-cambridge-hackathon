@@ -53,7 +53,9 @@ export class WorldUI {
   click(ray: Pose): boolean {
     if (!this.panel) return false; const hit = panelHit(ray, this.panel, this.width, this.height); if (!hit) return false;
     const x = hit.u * 1920, y = hit.v * 1080;
-    const target = this.captureDOM ? document.elementFromPoint(x, y)?.closest('button,input,select,textarea,a,[role="button"]') : null;
+    const hitElement = this.captureDOM ? document.elementFromPoint(x, y) : null;
+    let target = hitElement?.closest('button,input,select,textarea,a,[role="button"],[tabindex]') || null;
+    if (!target) for (let node = hitElement; node && node !== document.body; node = node.parentElement) if (node instanceof HTMLElement && getComputedStyle(node).cursor === 'pointer') { target = node; break; }
     if (!(target instanceof HTMLElement)) { const alpha = this.hitCanvas.getContext('2d', { willReadFrequently: true })?.getImageData(Math.min(191, Math.floor(hit.u * 192)), Math.min(107, Math.floor(hit.v * 108)), 1, 1).data[3] || 0; if (alpha > 10) { this.engineClick(x, y); return true; } return false; }
     target.focus({ preventScroll: true }); for (const name of ['pointermove', 'pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(name, { clientX: x, clientY: y, pointerId: 100, pointerType: 'pen', isPrimary: true, bubbles: true, cancelable: true, button: 0, buttons: name === 'pointerdown' ? 1 : 0 })); target.click(); this.dirty = true; return true;
   }
