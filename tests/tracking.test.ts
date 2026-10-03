@@ -1,0 +1,9 @@
+import { describe, expect, it } from 'vitest';
+import { eyeDimensions, multiply, normalize, TrackingSpace } from '../src/client/tracking.js';
+const rotation = { x: 0, y: 0, z: 0, w: 1 };
+describe('stable tracking space', () => {
+  it('anchors a stationary headset to the root independently of animation', () => { const space = new TrackingSpace(1.5), center = { position: { x: .2, y: 1.7, z: -.3 }, orientation: rotation }; space.calibrate(center, 0); const root = { x: 100, y: 3, z: -50 }; for (let i = 0; i < 100; i++) expect(space.world(center, root).position).toEqual({ x: 100, y: 4.5, z: -50 }); expect(space.world(center, { ...root, x: 101 }).position.x).toBe(101); });
+  it('keeps room motion in meters and rotates it with game heading', () => { const space = new TrackingSpace(1.6); space.calibrate({ position: { x: 0, y: 1.6, z: 0 }, orientation: rotation }, 90); const pose = space.world({ position: { x: 0, y: 1.4, z: -1 }, orientation: rotation }, { x: 0, y: 0, z: 0 }); expect(pose.position.x).toBeCloseTo(-1); expect(pose.position.y).toBeCloseTo(1.4); expect(pose.position.z).toBeCloseTo(0); });
+  it('preserves asymmetric eye aspect using one scale factor', () => { const dimensions = eyeDimensions(2400, 2600); expect(dimensions.height).toBe(2048); expect(dimensions.width / dimensions.height).toBeCloseTo(2400 / 2600, 2); });
+  it('normalizes tracking rotations and rejects invalid quaternion magnitudes', () => { expect(normalize({ x: NaN, y: 0, z: 0, w: 0 })).toEqual(rotation); expect(multiply(rotation, { x: 0, y: 2, z: 0, w: 0 }).y).toBe(1); });
+});

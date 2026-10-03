@@ -25,6 +25,8 @@ export class EngineController {
   private avatarYaw?: PC.GraphNode;
   private tracked?: PC.Entity;
   private headReference?: PC.Quat;
+  private eyeHeight = 1.6;
+  private originalExposure?: number;
   private settings: RenderSettings = { debug: true, width: 960, height: 540, fps: 30, tone: 'neutral', exposure: 1 };
   private keys = new Set<string>();
   private movement = { x: 0, z: 0 };
@@ -53,7 +55,7 @@ export class EngineController {
   connect(settings: RenderSettings): RuntimeState {
     const a = app(), pc = window.pc, p = player(), input = inputManager();
     if (!a || !pc || !p || !input) throw Error('Waiting for the game and player controls.');
-    this.stop(); this.settings = { ...settings }; this.application = a; this.manager = input;
+    this.stop(); this.settings = { ...settings }; this.application = a; this.manager = input; this.originalExposure = a.scene.exposure; a.scene.exposure = settings.exposure;
     const gd = a.graphicsDevice, main = camera()?.camera;
     if (!main) throw Error('Waiting for the game camera.');
     this.originalSize = { width: gd.width, height: gd.height, ratio: gd.maxPixelRatio, mode: a.resolutionMode };
@@ -82,7 +84,7 @@ export class EngineController {
     const p = player(), pc = window.pc, a = this.application, cam = this.headCamera?.camera;
     if (!this.connected || !p || !pc || !a || !cam) return;
     if (performance.now() - this.lastInput > 750) this.release(); this.afterRender();
-    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = nodes(p); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); }
+    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = nodes(p); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); }
     for (const entity of nodes(p)) for (const mesh of [...entity.render?.meshInstances || [], ...entity.model?.meshInstances || []]) if (!this.body.has(mesh)) {
       const saved = { visible: mesh.isVisibleFunc, cull: mesh.cull }; this.body.set(mesh, saved); mesh.cull = true;
       mesh.isVisibleFunc = (view: PC.Camera) => this.hiddenBody && view === cam.camera ? false : saved.visible ? saved.visible.call(mesh, view) : !saved.cull || view.frustum.containsAabb(mesh.aabb);
@@ -92,8 +94,8 @@ export class EngineController {
     const pose = new pc.Quat().setFromEulerAngles(this.pitch, this.yaw, 0), body = new pc.Quat().setFromEulerAngles(0, this.yaw + 180, 0); p.setRotation(body);
     if (this.avatarYaw) { this.boneRotations.set(this.avatarYaw, this.avatarYaw.getLocalRotation().clone()); this.avatarYaw.setRotation(body); }
     if (this.head) { this.boneRotations.set(this.head, this.head.getLocalRotation().clone()); this.headReference ||= body.clone().invert().mul(this.head.getRotation()); this.head.setRotation(pose.clone().mul(new pc.Quat().setFromEulerAngles(0, 180, 0)).mul(this.headReference)); }
-    const position = this.head?.getPosition() || p.getPosition(), f = pose.transformVector(pc.Vec3.FORWARD);
-    this.headCamera?.setPosition(position.x + f.x * .35, position.y + (this.head ? .12 : 1.6) + f.y * .35, position.z + f.z * .35); this.headCamera?.setRotation(pose);
+    const position = p.getPosition();
+    this.headCamera?.setPosition(position.x, position.y + this.eyeHeight, position.z); this.headCamera?.setRotation(pose);
   };
   private afterRender = (): void => { for (const [bone, rotation] of this.boneRotations) bone.setLocalRotation(rotation); this.boneRotations.clear(); };
   private async capture(): Promise<void> {
@@ -119,7 +121,7 @@ export class EngineController {
   private restoreBody(): void { for (const [mesh, saved] of this.body) { mesh.isVisibleFunc = saved.visible; mesh.cull = saved.cull; } this.body.clear(); }
   stop(): void {
     this.release(); this.afterRender(); this.restoreBody(); const a = this.application; this.connected = false;
-    if (a) { a.off('prerender', this.beforeRender); a.off('postrender', this.afterRender); if (this.originalFrameEnd) a.graphicsDevice.frameEnd = this.originalFrameEnd; if (this.originalSize) { a.graphicsDevice.maxPixelRatio = this.originalSize.ratio; a.setCanvasResolution(this.originalSize.mode, this.originalSize.width / this.originalSize.ratio, this.originalSize.height / this.originalSize.ratio); } }
+    if (a) { if (this.originalExposure !== undefined) a.scene.exposure = this.originalExposure; a.off('prerender', this.beforeRender); a.off('postrender', this.afterRender); if (this.originalFrameEnd) a.graphicsDevice.frameEnd = this.originalFrameEnd; if (this.originalSize) { a.graphicsDevice.maxPixelRatio = this.originalSize.ratio; a.setCanvasResolution(this.originalSize.mode, this.originalSize.width / this.originalSize.ratio, this.originalSize.height / this.originalSize.ratio); } }
     for (const [cam, enabled] of this.savedCameras) if (cam.entity.parent) cam.enabled = enabled; this.savedCameras.clear();
     if (this.source) this.manager?.removeSource(this.source); this.source = undefined; this.manager = undefined;
     this.headCamera?.destroy(); this.target?.destroy(); this.texture?.destroy(); this.captureContext?.unconfigure();
