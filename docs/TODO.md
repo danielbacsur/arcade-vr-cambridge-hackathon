@@ -24,3 +24,5 @@ No Quest is available during implementation. Simulator tests validate math, fram
 - The current multiplayer gap is structural: the wrapper recognizes only `/play/<uuid>` and no WebSocket proxy exists.
 
 - TypeScript migration: strict typecheck, lint, 20 integration/routing tests and production build pass. No Python application or extension is required.
+
+- Compatibility: public catalog sweep 121 games / 346 requests, zero discrepancies; Six Seven reaches Start, expired multiplayer link recovers into a fresh server. Broad in-game/hardware checks remain distinct from transport coverage.

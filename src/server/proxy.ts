@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { gzipSync } from 'node:zlib';
-import { assetTarget, isGameRoute, resolveRouting, rewriteOrigins, type Routing } from './routing.js';
+import { assetTarget, isGameRoute, resolveRouting, rewriteOrigins, websocketTarget, type Routing } from './routing.js';
 export interface ProxyOptions { publicDirectory: string; fetch?: typeof fetch; domain?: string }
 const forbidden = new Set(['host', 'connection', 'content-length', 'accept-encoding', 'if-none-match', 'if-modified-since', 'transfer-encoding', 'upgrade', 'proxy-authorization', 'authorization']);
 const privateHeader = (name: string) => /^(x-vercel-|x-forwarded-|x-lab-)/.test(name);
@@ -51,8 +51,9 @@ export function createProxy(options: ProxyOptions) {
       const file = localFile ? path.endsWith('controller.css') ? join(options.publicDirectory, 'controller.css') : join(options.publicDirectory, path) : join(options.publicDirectory, 'controller.html');
       try { const data = await readFile(file); response.writeHead(200, { 'Content-Type': file.endsWith('.css') ? 'text/css' : file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.map') ? 'application/json' : 'text/javascript', 'Cache-Control': 'no-store' }); response.end(request.method === 'HEAD' ? undefined : data); } catch { json(503, { error: 'build_required', action: 'Run npm run build before starting the proxy.' }); } return;
     }
-    const asset = assetTarget(rawPath);
-    if (path.startsWith('/__arcade_asset/') && !asset) { json(403, { error: 'unapproved_asset_host' }); return; }
+    const socketTarget = websocketTarget(rawPath);
+    const asset = assetTarget(rawPath) || (socketTarget ? { host: socketTarget.hostname, path: socketTarget.pathname + socketTarget.search } : null);
+    if ((path.startsWith('/__arcade_asset/') || path.startsWith('/__arcade_ws/')) && !asset) { json(403, { error: 'unapproved_asset_host' }); return; }
     const upstream = `https://${asset?.host || routing.upstream}${asset?.path || rawPath}`;
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 45000);
     response.once('close', () => { if (!response.writableEnded) controller.abort(); });
@@ -65,11 +66,11 @@ export function createProxy(options: ProxyOptions) {
       }
       let result: Response | undefined;
       for (let attempt = 0; attempt < 3; attempt++) {
-        try { result = await fetcher(upstream, { method: request.method, headers: upstreamHeaders(request, routing), body: body ? new Uint8Array(body).buffer : undefined, redirect: 'manual', signal: controller.signal }); } catch (error) { if (attempt === 2 || !['GET', 'HEAD'].includes(request.method || 'GET') || controller.signal.aborted) throw error; }
+        try { result = await fetcher(upstream, { method: request.method, headers: (() => { const headers = upstreamHeaders(request, routing); if (asset && !['arcade-ai-api-700875384378.europe-west1.run.app', 'arcade-ai-api-vud7pmmljq-ew.a.run.app', 'ivsqhfqkvqrnvpatoorf.supabase.co', 'multiplayer.joinarcade.ai'].includes(asset.host)) { headers.delete('authorization'); headers.delete('cookie'); } return headers; })(), body: body ? new Uint8Array(body).buffer : undefined, redirect: 'manual', signal: controller.signal }); } catch (error) { if (attempt === 2 || !['GET', 'HEAD'].includes(request.method || 'GET') || controller.signal.aborted) throw error; }
         if (result && (result.status < 500 || attempt === 2 || request.method !== 'GET')) break;
         await result?.body?.cancel(); await new Promise(resolve => setTimeout(resolve, 150 * (attempt + 1)));
       }
-      clearTimeout(timer); if (!result) throw Error('No upstream response');
+      clearTimeout(timer); if (process.env.ARCADE_DEBUG && result) console.info('[asset]', request.method, new URL(upstream).hostname, path, result.status, result.headers.get('content-type')); if (!result) throw Error('No upstream response');
       const mime = result.headers.get('content-type') || 'application/octet-stream', stream = mime.includes('text/event-stream');
       const textual = !stream && /text\/|javascript|json|xml|wasm-js/.test(mime);
       for (const [key, value] of result.headers) {

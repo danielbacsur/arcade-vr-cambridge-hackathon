@@ -1,18 +1,44 @@
 import type { ProxyBoot } from '../shared/protocol.js';
 import './globals.js';
-export function mapURL(value: string | URL, boot: ProxyBoot, base = location.href): string {
+import { recoverExpiredServer } from './recovery.js';
+export function mapURL(value: string | URL, boot: ProxyBoot, base = document.baseURI): string {
   const url = new URL(String(value), base);
-  const origin = boot.origins[url.hostname];
-  if (origin && ['http:', 'https:'].includes(url.protocol)) return origin + url.pathname + url.search + url.hash;
+  const socket = ['ws:', 'wss:'].includes(url.protocol);
+  const origin = socket ? boot.websocketOrigins?.[url.hostname] : boot.origins[url.hostname];
+  if (origin && ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) return origin + url.pathname + url.search + url.hash;
   return url.href;
 }
 export function installNavigation(boot: ProxyBoot): void {
   const map = (value: string | URL) => mapURL(value, boot);
+  if (new URL(location.href).searchParams.has('diagnostic')) {
+    const bitmap = window.createImageBitmap.bind(window);
+    window.createImageBitmap = new Proxy(bitmap, { apply(target, receiver, argumentsList: unknown[]) {
+      const source = argumentsList[0];
+      const metadata = source instanceof Blob ? { type: source.type, bytes: source.size } : source instanceof HTMLImageElement ? { host: new URL(source.src, location.href).hostname, complete: source.complete, width: source.naturalWidth } : source instanceof HTMLCanvasElement || source instanceof OffscreenCanvas ? { width: source.width, height: source.height } : { type: Object.prototype.toString.call(source) };
+      return Reflect.apply(target, receiver, argumentsList).catch((error: unknown) => { console.error('[Arcade bitmap]', JSON.stringify(metadata), error); throw error; });
+    } });
+  }
   const originalFetch = window.fetch.bind(window);
-  window.fetch = (input, init) => {
-    if (input instanceof Request) { const url = map(input.url); return originalFetch(url === input.url ? input : new Request(url, input), init); }
-    return originalFetch(map(input), init);
+  if (new URL(location.href).searchParams.has('diagnostic')) { const blob = Response.prototype.blob; Response.prototype.blob = async function() { const value = await blob.call(this); if (value.type.includes('text/html')) console.error('[Arcade image URL]', new URL(this.url || location.href).hostname, new URL(this.url || location.href).pathname); return value; }; }
+  let recovering = false;
+  const inspect = async (response: Response): Promise<Response> => {
+    if (!recovering && response.status === 404 && new URL(response.url, location.href).pathname.endsWith('/multiplayer/join-reservations')) {
+      recovering = true;
+      try {
+        const next = await recoverExpiredServer(new URL(location.href), boot, async url => { const result = await originalFetch(url); return result.ok ? result.json() : null; });
+        if (next) { const notice = document.createElement('div'); notice.setAttribute('role', 'status'); notice.textContent = 'This server expired. Joining a fresh game…'; document.body.append(notice); location.replace(next.href); }
+      } catch { /* Preserve Arcade's error when catalog recovery is unavailable. */ }
+    }
+    return response;
   };
+  window.fetch = (input, init) => {
+    if (input instanceof Request) { const url = map(input.url); return originalFetch(url === input.url ? input : new Request(url, input), init).then(inspect); }
+    return originalFetch(map(input), init).then(inspect);
+  };
+  const Socket = window.WebSocket;
+  window.WebSocket = new Proxy(Socket, { construct(target, argumentsList: [string | URL, (string | string[])?]) {
+    const [url, protocols] = argumentsList; return protocols === undefined ? new target(map(url)) : new target(map(url), protocols);
+  } });
   const open = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method: string, url: string | URL, async: boolean = true, username?: string | null, password?: string | null): void { open.call(this, method, map(url), async, username, password); };
   const openWindow = window.open.bind(window);

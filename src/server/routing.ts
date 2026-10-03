@@ -1,6 +1,6 @@
 import type { ProxyBoot } from '../shared/protocol.js';
 export const UPSTREAMS = {
-  site: 'www.tryarcade.com', editor: 'editor.joinarcade.ai', dashboard: 'dashboard.joinarcade.ai',
+  multiplayer: 'multiplayer.joinarcade.ai', supabase: 'ivsqhfqkvqrnvpatoorf.supabase.co', site: 'www.tryarcade.com', editor: 'editor.joinarcade.ai', dashboard: 'dashboard.joinarcade.ai',
   api: 'arcade-ai-api-700875384378.europe-west1.run.app', storage: 'storage.googleapis.com',
   apiLegacy: 'arcade-ai-api-vud7pmmljq-ew.a.run.app', fonts: 'fonts.googleapis.com', fontFiles: 'fonts.gstatic.com',
   jsdelivr: 'cdn.jsdelivr.net', unpkg: 'unpkg.com', firebase: 'www.googleapis.com', identity: 'identitytoolkit.googleapis.com',
@@ -26,11 +26,11 @@ export function resolveRouting(authority: string, scheme: 'http' | 'https' = 'ht
     else origins[host] = origin('runtime') + '/__arcade_asset/' + key;
   }
   if (role === 'runtime') origins[UPSTREAMS.editor] = url.origin;
-  return { authority, role, upstream: role === 'runtime' ? UPSTREAMS.editor : UPSTREAMS[role], local, scheme, boot: { origins, runtime: origin('runtime'), wrapper: origin('editor'), role, websocketProxy: true } };
+  return { authority, role, upstream: role === 'runtime' ? UPSTREAMS.editor : UPSTREAMS[role], local, scheme, boot: { origins, runtime: origin('runtime'), wrapper: origin('editor'), role, websocketProxy: true, websocketOrigins: Object.fromEntries(Object.entries(UPSTREAMS).map(([key, host]) => [host, origin('runtime').replace(/^http/, 'ws') + '/__arcade_ws/' + key])) } };
 }
 export function rewriteOrigins(text: string, routing: Routing, reverse = false): string {
-  const pairs = Object.entries(routing.boot.origins).flatMap(([host, origin]) => {
-    const from = reverse ? origin : `https://${host}`, to = reverse ? `https://${host}` : origin;
+  const pairs = [...Object.entries(routing.boot.origins).map(([host, origin]) => [host, origin, 'https'] as const), ...Object.entries(routing.boot.websocketOrigins || {}).map(([host, origin]) => [host, origin, 'wss'] as const)].flatMap(([host, origin, protocol]) => {
+    const from = reverse ? origin : `${protocol}://${host}`, to = reverse ? `${protocol}://${host}` : origin;
     return [[from, to], [from.replaceAll('/', '\\/'), to.replaceAll('/', '\\/')]];
   });
   pairs.sort((a, b) => (b[0]?.length || 0) - (a[0]?.length || 0));
