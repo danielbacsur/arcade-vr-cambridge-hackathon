@@ -10,3 +10,5 @@ describe('fixed upstream routing', () => {
   it('rewrites escaped URLs without changing arbitrary text', () => { const r = resolveRouting('editor.joinarcade.localhost:8765'); if (!r) throw Error(); expect(rewriteOrigins('https:\\/\\/editor.joinarcade.ai\\/mp', r)).toBe('http:\\/\\/editor.joinarcade.localhost:8765\\/mp'); });
   it('limits asset and socket targets to an explicit registry', () => { expect(assetTarget('/__arcade_asset/jsdelivr/a?sig=x')?.host).toBe('cdn.jsdelivr.net'); expect(assetTarget('/__arcade_asset/evil/a')).toBeNull(); expect(websocketTarget('/__arcade_ws/api/socket?a=b')?.href).toBe('wss://arcade-ai-api-700875384378.europe-west1.run.app/socket?a=b'); expect(websocketTarget('/__arcade_ws/localhost/')).toBeNull(); });
 });
+
+it('keeps short localhost aliases paired for the iframe origin check', () => { const editor = resolveRouting('editor.localhost:8765'), runtime = resolveRouting('runtime.localhost:8765'); expect(editor?.boot.runtime).toBe('http://runtime.localhost:8765'); expect(runtime?.boot.wrapper).toBe('http://editor.localhost:8765'); });

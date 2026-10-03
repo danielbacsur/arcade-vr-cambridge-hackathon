@@ -18,7 +18,8 @@ export function resolveRouting(authority: string, scheme: 'http' | 'https' = 'ht
   if (!role && [process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL].includes(url.hostname)) role = 'site';
   if (!role) return null;
   const port = url.port ? `:${url.port}` : '';
-  const origin = (r: Role) => `${scheme}://${local && r === 'site' ? 'localhost' : roleHosts[r] + '.' + (local ? 'localhost' : domain)}${port}`;
+  const shortEditor = local && ['editor.localhost', 'runtime.localhost'].includes(url.hostname);
+  const origin = (r: Role) => `${scheme}://${local && r === 'site' ? 'localhost' : shortEditor && ['editor', 'runtime'].includes(r) ? r + '.localhost' : roleHosts[r] + '.' + (local ? 'localhost' : domain)}${port}`;
   const origins: Record<string, string> = {};
   for (const [key, host] of Object.entries(UPSTREAMS)) {
     if (['site', 'editor', 'dashboard', 'api', 'storage'].includes(key)) origins[host] = origin(key as Role);
