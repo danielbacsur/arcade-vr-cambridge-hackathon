@@ -18,9 +18,10 @@ export class WorldUI {
   private captured = 0;
   private updated = true;
   private readonly observer: MutationObserver;
-  private readonly width = 2.4;
-  private readonly height = 1.35;
-  constructor(private readonly gl: WebGL2RenderingContext, private readonly onError: (message: string) => void, private readonly captureDOM = true, private readonly engineClick: (x: number, y: number) => void = () => {}) {
+  private readonly width: number;
+  private readonly height: number;
+  constructor(private readonly gl: WebGL2RenderingContext, private readonly onError: (message: string) => void, private readonly captureDOM = true, private readonly engineClick: (x: number, y: number) => void = () => {}, private readonly layout = { width: 1920, height: 1080 }) {
+    this.width = Math.min(2.4, 1.5 * layout.width / layout.height); this.height = this.width * layout.height / layout.width;
     this.texture = gl.createTexture(); this.engineTexture = gl.createTexture(); this.hitCanvas.width = 192; this.hitCanvas.height = 108; this.buffer = gl.createBuffer();
     const shader = (kind: number, source: string) => { const value = gl.createShader(kind); if (!value) throw Error('UI shader unavailable'); gl.shaderSource(value, source); gl.compileShader(value); if (!gl.getShaderParameter(value, gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(value) || 'UI shader failed'); return value; };
     const vertex = shader(gl.VERTEX_SHADER, '#version 300 es\nin vec2 position;uniform mat4 projection;uniform mat4 view;uniform mat4 model;out vec2 uv;void main(){uv=position*.5+.5;gl_Position=projection*view*model*vec4(position.x*1.2,position.y*.675,0.,1.);}');
@@ -34,12 +35,12 @@ export class WorldUI {
   private invalidate = (): void => { this.dirty = true; };
   anchor(head: Pose): void { const forward = rotate(head.orientation, { x: 0, y: 0, z: -1 }), yaw = Math.atan2(-forward.x, -forward.z) / 2; this.panel = { position: { x: head.position.x + Math.sin(yaw * 2) * -2, y: head.position.y - .1, z: head.position.z - Math.cos(yaw * 2) * 2 }, orientation: { x: 0, y: Math.sin(yaw), z: 0, w: Math.cos(yaw) } }; }
   update(time: number): void { if (!this.captureDOM || this.stopped || this.busy || !this.dirty || time - this.captured < 250) return; this.busy = true; this.dirty = false; this.captured = time;
-    void toCanvas(document.body, { width: 1920, height: 1080, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, backgroundColor: 'transparent', skipFonts: true, filter: node => !(node instanceof HTMLCanvasElement && node.dataset.arcadeVrEngine === 'true'), style: { background: 'transparent', width: '1920px', height: '1080px' } }).then(canvas => { if (!this.stopped) { this.canvas = canvas; this.updated = true; } }).catch(() => { this.onError('Some game UI could not be captured. DOM overlays remain the preferred path.'); }).finally(() => { this.busy = false; });
+    void toCanvas(document.body, { width: this.layout.width, height: this.layout.height, canvasWidth: 1920, canvasHeight: 1080, pixelRatio: 1, backgroundColor: 'transparent', skipFonts: true, filter: node => !(node instanceof HTMLCanvasElement && node.dataset.arcadeVrEngine === 'true'), style: { background: 'transparent', width: this.layout.width + 'px', height: this.layout.height + 'px' } }).then(canvas => { if (!this.stopped) { this.canvas = canvas; this.updated = true; } }).catch(() => { this.onError('Some game UI could not be captured. DOM overlays remain the preferred path.'); }).finally(() => { this.busy = false; });
   }
   draw(projection: Float32Array, view: Float32Array, head: Pose): void {
     const pc = window.pc, gl = this.gl; if ((!this.canvas && !this.engineBitmap) || !pc) return; if (!this.panel) this.anchor(head);
     const panel = this.panel; if (!panel) return;
-    const model = new pc.Mat4().setTRS(new pc.Vec3(panel.position.x, panel.position.y, panel.position.z), new pc.Quat(panel.orientation.x, panel.orientation.y, panel.orientation.z, panel.orientation.w), pc.Vec3.ONE);
+    const model = new pc.Mat4().setTRS(new pc.Vec3(panel.position.x, panel.position.y, panel.position.z), new pc.Quat(panel.orientation.x, panel.orientation.y, panel.orientation.z, panel.orientation.w), new pc.Vec3(this.width / 2.4, this.height / 1.35, 1));
     gl.useProgram(this.program); gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer); const attribute = gl.getAttribLocation(this.program, 'position'); gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute, 2, gl.FLOAT, false, 0, 0);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'projection'), false, projection); gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'view'), false, view); gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'model'), false, model.data);
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -52,7 +53,7 @@ export class WorldUI {
   }
   click(ray: Pose): boolean {
     if (!this.panel) return false; const hit = panelHit(ray, this.panel, this.width, this.height); if (!hit) return false;
-    const x = hit.u * 1920, y = hit.v * 1080;
+    const x = hit.u * this.layout.width, y = hit.v * this.layout.height;
     const hitElement = this.captureDOM ? document.elementFromPoint(x, y) : null;
     let target = hitElement?.closest('button,input,select,textarea,a,[role="button"],[tabindex]') || null;
     if (!target) for (let node = hitElement; node && node !== document.body; node = node.parentElement) if (node instanceof HTMLElement && getComputedStyle(node).cursor === 'pointer') { target = node; break; }
