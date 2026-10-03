@@ -1,0 +1,39 @@
+{
+  "channel": "arcade-vr-lab-v1",
+  "direction": "response",
+  "session": "eb405903-810c-49c3-873a-59ed172f348f",
+  "id": "2bf4af7f-1154-41ac-98d1-dbf748cf1de2",
+  "op": "camera.pose",
+  "ok": true,
+  "result": {
+    "session": "eb405903-810c-49c3-873a-59ed172f348f",
+    "origin": "https://editor.joinarcade.ai",
+    "path": "/play/db962afa-df0d-48ba-ab66-0290c2dd0e62",
+    "pc": true,
+    "pcVersion": "2.22.0",
+    "app": true,
+    "gameManager": true,
+    "camera": {
+      "name": "PlayCamera:fps",
+      "position": {
+        "x": 3,
+        "y": 2,
+        "z": 5
+      },
+      "euler": {
+        "x": 0,
+        "y": 44.99999999999999,
+        "z": 0
+      }
+    },
+    "device": "webgpu",
+    "webxrAPI": true,
+    "webgpuXRBinding": false,
+    "engineXR": true,
+    "vrAvailable": false,
+    "canvasCount": 1,
+    "armed": true,
+    "injectedInMainWorld": true,
+    "fixture": false
+  }
+}
