@@ -1,0 +1,62 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "storage.joinarcade.danielbacsur.dev"
+        }
+      ],
+      "destination": "https://storage.googleapis.com/:path*"
+    },
+    {
+      "source": "/libs/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "editor.joinarcade.danielbacsur.dev"
+        }
+      ],
+      "destination": "https://editor.joinarcade.ai/libs/:path*"
+    },
+    {
+      "source": "/libs/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "runtime.joinarcade.danielbacsur.dev"
+        }
+      ],
+      "destination": "https://editor.joinarcade.ai/libs/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "includeFiles": "{web,extension}/**"
+    }
+  },
+  "headers": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "storage.joinarcade.danielbacsur.dev"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://runtime.joinarcade.danielbacsur.dev"
+        }
+      ]
+    }
+  ]
+}
