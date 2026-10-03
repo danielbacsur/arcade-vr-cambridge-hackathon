@@ -1,0 +1,208 @@
+{
+  "before": {
+    "version": "0.4.0",
+    "connected": true,
+    "session": "2d1b34a5-5986-4ec7-8e7b-9854b82690ea",
+    "player": {
+      "id": "6083acb8-fea9-44b7-b0ce-e0801d2202e5",
+      "name": "player",
+      "position": {
+        "x": 0.008811288513243198,
+        "y": 5.599230766296387,
+        "z": 37.04765701293945
+      },
+      "euler": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "forwardAxis": "+Z"
+    },
+    "head": {
+      "name": "mixamorig:Head",
+      "position": {
+        "x": 0.0398966446518898,
+        "y": 6.156096458435059,
+        "z": 37.057552337646484
+      }
+    },
+    "camera": {
+      "name": "HackathonPlayerHeadCamera",
+      "position": {
+        "x": 0.0398966446518898,
+        "y": 6.276096343994141,
+        "z": 37.40755081176758
+      },
+      "euler": {
+        "x": 180,
+        "y": -7.0167096047110005e-15,
+        "z": 180
+      }
+    },
+    "move": {
+      "x": 0,
+      "z": 0
+    },
+    "keys": [],
+    "frames": 322,
+    "streamError": null,
+    "inputSource": true,
+    "look": {
+      "yaw": -180,
+      "pitch": 0,
+      "roll": 0
+    },
+    "mainCamera": {
+      "name": "PlayCamera:tps",
+      "position": {
+        "x": 0.008811288513243198,
+        "y": 9.491460800170898,
+        "z": 31.49714469909668
+      },
+      "euler": {
+        "x": 159.94648673116106,
+        "y": 0,
+        "z": 180
+      }
+    }
+  },
+  "turned": {
+    "version": "0.4.0",
+    "connected": true,
+    "session": "2d1b34a5-5986-4ec7-8e7b-9854b82690ea",
+    "player": {
+      "id": "6083acb8-fea9-44b7-b0ce-e0801d2202e5",
+      "name": "player",
+      "position": {
+        "x": 0.008820713497698307,
+        "y": 5.599222660064697,
+        "z": 37.0477180480957
+      },
+      "euler": {
+        "x": 180,
+        "y": 44.99999999999999,
+        "z": 180
+      },
+      "forwardAxis": "+Z"
+    },
+    "head": {
+      "name": "mixamorig:Head",
+      "position": {
+        "x": 0.041371364146471024,
+        "y": 6.134559631347656,
+        "z": 37.039249420166016
+      }
+    },
+    "camera": {
+      "name": "HackathonPlayerHeadCamera",
+      "position": {
+        "x": 0.2850988507270813,
+        "y": 6.31533670425415,
+        "z": 36.7955207824707
+      },
+      "euler": {
+        "x": 10.000000190089933,
+        "y": -44.99999999999999,
+        "z": 5.62247955421832e-16
+      }
+    },
+    "move": {
+      "x": 0,
+      "z": 0
+    },
+    "keys": [],
+    "frames": 322,
+    "streamError": null,
+    "inputSource": true,
+    "look": {
+      "yaw": -45,
+      "pitch": 10,
+      "roll": 0
+    },
+    "mainCamera": {
+      "name": "PlayCamera:tps",
+      "position": {
+        "x": 0.008820713497698307,
+        "y": 9.49145221710205,
+        "z": 31.49720573425293
+      },
+      "euler": {
+        "x": 159.94651152954546,
+        "y": 0,
+        "z": 180
+      }
+    }
+  },
+  "after": {
+    "version": "0.4.0",
+    "connected": true,
+    "session": "2d1b34a5-5986-4ec7-8e7b-9854b82690ea",
+    "player": {
+      "id": "6083acb8-fea9-44b7-b0ce-e0801d2202e5",
+      "name": "player",
+      "position": {
+        "x": 2.429884195327759,
+        "y": 5.682679653167725,
+        "z": 34.69851303100586
+      },
+      "euler": {
+        "x": 180,
+        "y": 44.99999999999999,
+        "z": 180
+      },
+      "forwardAxis": "+Z"
+    },
+    "head": {
+      "name": "mixamorig:Head",
+      "position": {
+        "x": 2.4049506187438965,
+        "y": 6.206993579864502,
+        "z": 34.724727630615234
+      }
+    },
+    "camera": {
+      "name": "HackathonPlayerHeadCamera",
+      "position": {
+        "x": 2.6486780643463135,
+        "y": 6.387770652770996,
+        "z": 34.48099899291992
+      },
+      "euler": {
+        "x": 10.000000190089933,
+        "y": -44.99999999999999,
+        "z": 5.62247955421832e-16
+      }
+    },
+    "move": {
+      "x": 0,
+      "z": 0
+    },
+    "keys": [],
+    "frames": 331,
+    "streamError": null,
+    "inputSource": true,
+    "look": {
+      "yaw": -45,
+      "pitch": 10,
+      "roll": 0
+    },
+    "mainCamera": {
+      "name": "PlayCamera:tps",
+      "position": {
+        "x": 2.429884195327759,
+        "y": 9.574909210205078,
+        "z": 29.148000717163086
+      },
+      "euler": {
+        "x": 159.94651152954546,
+        "y": 0,
+        "z": 180
+      }
+    }
+  },
+  "distance": 3.373471890407743,
+  "forwardAlignment": 0.9998865599734227,
+  "cameraAligned": true,
+  "spectatorIndependent": true,
+  "passed": true
+}
