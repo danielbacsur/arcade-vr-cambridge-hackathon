@@ -29,7 +29,7 @@ export class XRPresenter {
     if (new URL(location.href).searchParams.get('xr') !== '1') return;
     void navigator.xr?.isSessionSupported('immersive-vr').then(supported => { this.supported = supported; });
     const enter = (event: Event) => { if (event.isTrusted) this.entry.tryEnter(true); };
-    document.addEventListener('pointerdown', enter, true); document.addEventListener('keydown', enter, true);
+    document.addEventListener('click', enter, true); document.addEventListener('keydown', enter, true);
     setInterval(() => this.entry.tryEnter(false), 500);
     window.addEventListener('pagehide', () => { void this.session?.end(); });
   }
