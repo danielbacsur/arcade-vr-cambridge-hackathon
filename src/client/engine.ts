@@ -1,5 +1,6 @@
 import type * as PC from 'playcanvas';
 import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPacket } from '../shared/protocol.js';
+import { RigHands } from './hands.js';
 import { TrackingSpace, rotate } from './tracking.js';
 import type { EngineApplication, InputManager, InputSource } from './globals.js';
 const rotateForward = (q: import('../shared/protocol.js').Quaternion) => rotate(q, { x: 0, y: 0, z: -1 });
@@ -8,7 +9,8 @@ export function app(): EngineApplication | undefined { return window.pcApp || wi
 export function player(): PC.Entity | undefined { const gm = window.gameManager, plugin = gm?.getGameLogicPlugin?.(); return gm?.getPlayerControlService?.()?.controlledEntity || gm?.getLocalPlayerEntity?.() || plugin?.getLocalPlayerEntity?.() || plugin?.playerEntity; }
 function camera(): PC.Entity | undefined { const found = window.gameManager?.getViewCamera?.(); return found && 'entity' in found ? found.entity : found; }
 function inputManager(): InputManager | undefined { const gm = window.gameManager, service = gm?.getPlayerControlService?.(); for (const rig of [service?.getPlayRigController?.(), service?.getFpsController?.(), gm?.getFPSController?.(), gm?.playModeController?.fpsController]) { const input = rig?.getInputManager?.() || rig?.inputManager; if (input) return input; } return undefined; }
-export function nodes(root: PC.Entity): PC.Entity[] { const output: PC.Entity[] = [], queue: PC.GraphNode[] = [root]; while (queue.length && output.length < 5000) { const node = queue.shift(); if (node) { if ('getGuid' in node) output.push(node as PC.Entity); queue.push(...node.children); } } return output; }
+export function graphNodes(root: PC.GraphNode): PC.GraphNode[] { const output: PC.GraphNode[] = [], queue: PC.GraphNode[] = [root], seen = new Set<PC.GraphNode>(); while (queue.length && output.length < 5000) { const node = queue.shift(); if (node && !seen.has(node)) { seen.add(node); output.push(node); queue.push(...node.children); if ('model' in node) { const graph = (node as PC.Entity).model?.model?.graph; if (graph) queue.push(graph); } } } return output; }
+export function nodes(root: PC.Entity): PC.Entity[] { return graphNodes(root).filter((node): node is PC.Entity => 'getGuid' in node); }
 export class EngineController {
   private application?: EngineApplication;
   private headCamera?: PC.Entity;
@@ -27,6 +29,8 @@ export class EngineController {
   private avatarYaw?: PC.GraphNode;
   private tracked?: PC.Entity;
   private headReference?: PC.Quat;
+  private hands?: RigHands;
+  private trackedHands = 0;
   private eyeHeight = 1.6;
   private originalExposure?: number;
   private settings: RenderSettings = { debug: true, width: 960, height: 540, fps: 30, tone: 'neutral', exposure: 1 };
@@ -92,7 +96,7 @@ export class EngineController {
   status(): RuntimeState {
     const p = player(), now = performance.now(); this.frameTimes = this.frameTimes.filter(time => now - time < 2000);
     const count = this.frameTimes.length, elapsed = count > 1 ? now - (this.frameTimes[0] || now) : 0;
-    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: !!this.xrPacket, supported: !!navigator.xr, mode: this.xrPacket ? 'same-runtime-webgpu-stereo' : 'flat', ui: this.xrUI, hands: this.xrPacket?.hands.length || 0 }, error: this.error };
+    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: !!this.xrPacket, supported: !!navigator.xr, mode: this.xrPacket ? 'same-runtime-webgpu-stereo' : 'flat', ui: this.xrUI, hands: this.trackedHands }, error: this.error };
   }
   connect(settings: RenderSettings): RuntimeState {
     const a = app(), pc = window.pc, p = player(), input = inputManager();
@@ -126,7 +130,7 @@ export class EngineController {
     const p = player(), pc = window.pc, a = this.application, cam = this.headCamera?.camera;
     if (!this.connected || !p || !pc || !a || !cam) return;
     if (performance.now() - this.lastInput > 750) this.release(); this.afterRender();
-    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = nodes(p); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); }
+    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = graphNodes(p); this.hands = new RigHands(children); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); }
     for (const entity of nodes(p)) for (const mesh of [...entity.render?.meshInstances || [], ...entity.model?.meshInstances || []]) if (!this.body.has(mesh)) {
       const saved = { visible: mesh.isVisibleFunc, cull: mesh.cull }; this.body.set(mesh, saved); mesh.cull = true;
       mesh.isVisibleFunc = (view: PC.Camera) => this.hiddenBody && (view === cam.camera || view === this.rightCamera?.camera?.camera) ? false : saved.visible ? saved.visible.call(mesh, view) : !saved.cull || view.frustum.containsAabb(mesh.aabb);
@@ -142,6 +146,7 @@ export class EngineController {
     if (this.head) { this.boneRotations.set(this.head, this.head.getLocalRotation().clone()); this.headReference ||= body.clone().invert().mul(this.head.getRotation()); this.head.setRotation(pose.clone().mul(new pc.Quat().setFromEulerAngles(0, 180, 0)).mul(this.headReference)); }
     const position = p.getPosition();
     this.headCamera?.setPosition(position.x, position.y + this.eyeHeight, position.z); this.headCamera?.setRotation(pose);
+    if (this.xrPacket && this.tracking) this.trackedHands = this.hands?.apply(this.xrPacket, this.tracking, p, bone => { if (!this.boneRotations.has(bone)) this.boneRotations.set(bone, bone.getLocalRotation().clone()); }) || 0;
     if (this.xrPacket && this.tracking) for (const eye of this.xrPacket.views) {
       const camera = eye.eye === 'left' ? this.headCamera : this.rightCamera, component = camera?.camera; if (!camera || !component) continue;
       const world = this.tracking.world(eye, vector(p.getPosition())); camera.setPosition(world.position.x, world.position.y, world.position.z); camera.setRotation(new pc.Quat(world.orientation.x, world.orientation.y, world.orientation.z, world.orientation.w));
@@ -179,6 +184,6 @@ export class EngineController {
     if (this.source) this.manager?.removeSource(this.source); this.source = undefined; this.manager = undefined;
     this.headCamera?.destroy(); this.target?.destroy(); this.texture?.destroy(); this.captureContext?.unconfigure();
     this.headCamera = this.target = this.texture = this.captureCanvas = this.captureContext = undefined;
-    this.tracked = undefined; this.headReference = undefined; this.head = this.avatarYaw = undefined; this.busy = this.waitingAck = false;
+    this.tracked = undefined; this.hands = undefined; this.trackedHands = 0; this.headReference = undefined; this.head = this.avatarYaw = undefined; this.busy = this.waitingAck = false;
   }
 }
