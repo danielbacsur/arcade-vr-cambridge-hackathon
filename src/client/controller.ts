@@ -51,7 +51,7 @@ window.addEventListener('keyup', event => { keyboard.delete(event.code); held.de
 window.addEventListener('blur', () => { keyboard.clear(); release(); }); document.addEventListener('visibilitychange', () => { if (document.hidden) release(); }); window.addEventListener('pagehide', release);
 for (const id of ['quality', 'tone', 'exposure']) element('#' + id).onchange = () => { if (connected) void connect(); };
 frame.addEventListener('load', () => { session = undefined; connected = false; for (const waiting of pending.values()) { clearTimeout(waiting.timer); waiting.reject(Error('The game navigated.')); } pending.clear(); });
-const viewport = element('.live-view'); new ResizeObserver(() => { frame.style.transform = immersive ? 'none' : `scale(${viewport.clientWidth / 1920})`; }).observe(viewport);
+const viewport = element('.live-view'); new ResizeObserver(() => { frame.style.transform = `scale(${viewport.clientWidth / 1920})`; }).observe(viewport);
 async function initialize(): Promise<void> { immersive = await navigator.xr?.isSessionSupported('immersive-vr').catch(() => false) || false; document.body.dataset.mode = immersive ? 'vr' : 'debug'; overlay.hidden = !immersive; const url = new URL(location.href); url.hostname = location.hostname.replace(/^editor\./, 'runtime.'); if (location.hostname === 'editor.localhost') url.hostname = 'runtime.joinarcade.localhost'; url.searchParams.set('xr', immersive ? '1' : '0'); origin = url.origin; frame.src = url.href; }
 setInterval(() => { if (!connected && !connecting && !document.hidden) void connect(); else if (connected) sendInput(); }, 500);
 void initialize().catch(error => { connection.textContent = String(error); });
