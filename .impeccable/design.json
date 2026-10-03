@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T12:47:36.954079+00:00",
+  "title": "Design System: Six Seven control room",
+  "extensions": {
+    "typographyMeta": {
+      "body": {
+        "displayName": "Native UI",
+        "purpose": "Compact operational text in the existing lab."
+      },
+      "telemetry": {
+        "displayName": "Telemetry",
+        "purpose": "Coordinate and diagnostic readability."
+      }
+    },
+    "shadows": [
+      {
+        "name": "stick",
+        "value": "0 3px 8px #17262c22",
+        "purpose": "Small depth cue for the movable joystick stick."
+      }
+    ],
+    "motion": [
+      {
+        "name": "direct-input",
+        "value": "No CSS transition; direct translate from input",
+        "purpose": "Keep movement feedback synchronous with input."
+      },
+      {
+        "name": "direct-look",
+        "value": "Pointer delta \u00d7 0.22 degrees; focused arrow key delta 3 degrees",
+        "purpose": "Drive native game yaw and pitch from the player-view surface, with immediate grab/grabbing state feedback."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack-main",
+        "value": "900px"
+      },
+      {
+        "name": "stack-controls",
+        "value": "470px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Connect button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Connect outside controls and the player-head camera.",
+      "html": "<button class=\"ds-btn ds-connect\">Connect controls &amp; camera</button>",
+      "css": ".ds-btn{cursor:pointer;border:1px solid #c5ceca;background:#fff;color:#20373b;border-radius:6px;font:600 13px system-ui;padding:12px 14px;touch-action:none}.ds-btn:active,.ds-btn.ds-held{background:#d5e8df;border-color:#267654}.ds-btn:focus-visible{outline:3px solid #438c75;outline-offset:3px}.ds-connect{background:#24674e;color:white;border-color:#24674e}"
+    },
+    {
+      "name": "Action button",
+      "kind": "button",
+      "refersTo": "button-standard",
+      "description": "Hold an action or release input.",
+      "html": "<button class=\"ds-btn\">E \u00b7 Buzzer / interact</button>",
+      "css": ".ds-btn{cursor:pointer;border:1px solid #c5ceca;background:#fff;color:#20373b;border-radius:6px;font:600 13px system-ui;padding:12px 14px;touch-action:none}.ds-btn:active,.ds-btn.ds-held{background:#d5e8df;border-color:#267654}.ds-btn:focus-visible{outline:3px solid #438c75;outline-offset:3px}"
+    },
+    {
+      "name": "Held action",
+      "kind": "button",
+      "refersTo": "button-held",
+      "description": "Persistent visual feedback while an input is held.",
+      "html": "<button class=\"ds-btn ds-held\">Space \u00b7 Jump</button>",
+      "css": ".ds-btn{cursor:pointer;border:1px solid #c5ceca;background:#fff;color:#20373b;border-radius:6px;font:600 13px system-ui;padding:12px 14px;touch-action:none}.ds-btn:active,.ds-btn.ds-held{background:#d5e8df;border-color:#267654}.ds-btn:focus-visible{outline:3px solid #438c75;outline-offset:3px}"
+    },
+    {
+      "name": "Look range",
+      "kind": "input",
+      "description": "Browser-native optional look control sharing the camera-drag look protocol.",
+      "html": "<label class=\"ds-label\">Look direction<input class=\"ds-range\" type=\"range\" min=\"-180\" max=\"180\" value=\"0\"></label>",
+      "css": ".ds-label{font:12px system-ui;display:flex;flex-direction:column;gap:3px;margin-top:3px}.ds-range{accent-color:#24674e;width:100%}"
+    },
+    {
+      "name": "Joystick",
+      "kind": "custom",
+      "description": "Circular movement surface and directly translated stick.",
+      "html": "<div class=\"ds-joystick\" role=\"application\" aria-label=\"Movement joystick\"><div class=\"ds-crosshair\"></div><div class=\"ds-stick\"></div></div>",
+      "css": ".ds-joystick{width:176px;height:176px;border:1px solid #a9bcb3;border-radius:50%;background:#e8ede8;position:relative;touch-action:none;cursor:grab}.ds-joystick:focus-visible{outline:3px solid #438c75;outline-offset:3px}.ds-crosshair:before,.ds-crosshair:after{content:\"\";position:absolute;background:#c3cfc6}.ds-crosshair:before{left:50%;top:15px;bottom:15px;width:1px}.ds-crosshair:after{top:50%;left:15px;right:15px;height:1px}.ds-stick{position:absolute;left:58px;top:58px;width:58px;height:58px;box-sizing:border-box;border-radius:50%;background:#2c7157;border:5px solid #fff;box-shadow:0 3px 8px #17262c22;pointer-events:none}"
+    },
+    {
+      "name": "Camera surface",
+      "kind": "custom",
+      "refersTo": "media",
+      "description": "Live player-head camera surface that accepts drag-to-look and focused arrow-key input.",
+      "html": "<canvas class=\"ds-camera\" width=\"640\" height=\"360\" aria-label=\"Player perspective: drag to look around\" tabindex=\"0\"></canvas>",
+      "css": ".ds-camera{width:100%;aspect-ratio:16/9;background:#101820;display:block;border-radius:8px;cursor:grab;touch-action:none}.ds-camera.ds-looking{cursor:grabbing}.ds-camera:focus-visible{outline:3px solid #438c75;outline-offset:3px}"
+    },
+    {
+      "name": "Directional arrow",
+      "kind": "button",
+      "refersTo": "button-standard",
+      "description": "Accessible movement button with an inline SVG arrow.",
+      "html": "<button class=\"ds-btn\" aria-label=\"Move forward\"><svg aria-hidden=\"true\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20V4m-6 6 6-6 6 6\"/></svg></button>",
+      "css": ".ds-btn{cursor:pointer;border:1px solid #c5ceca;background:#fff;color:#20373b;border-radius:6px;font:600 13px system-ui;padding:12px 14px;touch-action:none}.ds-btn:active,.ds-btn.ds-held{background:#d5e8df;border-color:#267654}.ds-btn:focus-visible{outline:3px solid #438c75;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Station",
+    "overview": "A neutral control station keeps the live game and the player\u2019s second viewpoint beside direct outside inputs. Pale surfaces support readable labels and status; dark media regions carry the game imagery. Green identifies connection and input feedback. Density is practical, with controls grouped by task and diagnostics kept in a disclosure.\n\nThis is an operational extension of the integration lab. Its visual authority is the shipped controller, not a new marketing identity. The external Arcade game owns its imagery; these rules describe the wrapper and controls.",
+    "keyCharacteristics": [
+      "Neutral light wrapper around dark live media.",
+      "Green identifies connection and held input.",
+      "Direct controls, readable status, and explicit release."
+    ],
+    "rules": [
+      {
+        "name": "The Input Feedback Rule",
+        "body": "Green communicates operational controls and input state rather than decoration.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do keep the game, head-camera feed, and controls visibly related.",
+      "Do use green for connection and input feedback.",
+      "Do preserve visible focus and held-state feedback.",
+      "Do stack the two main regions at the established narrow-screen breakpoint."
+    ],
+    "donts": [
+      "Don\u2019t replace live media with decorative imagery.",
+      "Don\u2019t add decorative motion to continuous input.",
+      "Don\u2019t promote the remaining uppercase labels or system heading into a display identity."
+    ]
+  }
+}
