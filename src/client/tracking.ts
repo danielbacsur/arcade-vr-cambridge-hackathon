@@ -13,7 +13,9 @@ export class TrackingSpace {
   constructor(public eyeHeight = 1.6) {}
   calibrate(center: Pose, yawDegrees: number): void {
     this.origin = { ...center.position }; this.scale = this.eyeHeight / Math.max(.8, Math.min(2.2, center.position.y || 1.6));
-    const yaw = yawDegrees * Math.PI / 360; this.heading = { x: 0, y: Math.sin(yaw), z: 0, w: Math.cos(yaw) };
+    const forward = rotate(center.orientation, { x: 0, y: 0, z: -1 });
+    const initialYaw = Math.atan2(-forward.x, -forward.z) * 180 / Math.PI;
+    const yaw = (yawDegrees - initialYaw) * Math.PI / 360; this.heading = { x: 0, y: Math.sin(yaw), z: 0, w: Math.cos(yaw) };
   }
   world(pose: Pose, root: Vector3): Pose {
     if (!this.origin) this.calibrate(pose, 0);

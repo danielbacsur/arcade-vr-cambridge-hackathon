@@ -1,6 +1,8 @@
 import type * as PC from 'playcanvas';
-import { finite, type RenderSettings, type RuntimeState, type Vector3 } from '../shared/protocol.js';
+import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPacket } from '../shared/protocol.js';
+import { TrackingSpace, rotate } from './tracking.js';
 import type { EngineApplication, InputManager, InputSource } from './globals.js';
+const rotateForward = (q: import('../shared/protocol.js').Quaternion) => rotate(q, { x: 0, y: 0, z: -1 });
 const vector = (v: PC.Vec3): Vector3 => ({ x: v.x, y: v.y, z: v.z });
 export function app(): EngineApplication | undefined { return window.pcApp || window.gameManager?.getApp?.(); }
 export function player(): PC.Entity | undefined { const gm = window.gameManager, plugin = gm?.getGameLogicPlugin?.(); return gm?.getPlayerControlService?.()?.controlledEntity || gm?.getLocalPlayerEntity?.() || plugin?.getLocalPlayerEntity?.() || plugin?.playerEntity; }
@@ -44,13 +46,53 @@ export class EngineController {
   private error: string | null = null;
   private connected = false;
   private hiddenBody = true;
+  private xrPacket?: XRPacket;
+  private tracking?: TrackingSpace;
+  private trackingReset = false;
+  private rightCamera?: PC.Entity;
+  private originalAnimation?: () => void;
+  private savedXRSettings?: RenderSettings;
+  xrUI = 'dom';
+  onXRFrame: (bitmap: ImageBitmap, packet: XRPacket) => void = bitmap => bitmap.close();
+  reportError(message: string): void { this.error = message; this.onState(this.status()); }
+  resetTracking(): void { this.trackingReset = true; }
+  renderXR(packet: XRPacket, size: { width: number; height: number }): void {
+    const a = this.application, pc = window.pc, cam = this.headCamera?.camera;
+    if (!a || !pc || !cam) return;
+    if (!this.xrPacket) {
+      this.savedXRSettings = { ...this.settings }; this.originalAnimation = a.requestAnimationFrame;
+      if (a.frameRequestId) cancelAnimationFrame(a.frameRequestId); a.frameRequestId = undefined; a.requestAnimationFrame = () => {};
+      this.waitingAck = false; this.tracking = new TrackingSpace(this.eyeHeight); this.tracking.calibrate(packet.center, this.yaw);
+      const right = this.rightCamera = new pc.Entity('ArcadeVRRightEye'); a.root.addChild(right); right.addComponent('camera', { layers: [...cam.layers], nearClip: cam.nearClip, farClip: cam.farClip, clearColor: cam.clearColor, priority: cam.priority + 1 });
+      if (right.camera) { right.camera.gammaCorrection = cam.gammaCorrection; right.camera.toneMapping = cam.toneMapping; }
+    }
+    if (this.trackingReset) { this.tracking?.calibrate(packet.center, this.yaw); this.trackingReset = false; }
+    this.xrPacket = packet; this.lastInput = performance.now(); this.movement = packet.move; this.setKeys(new Set(packet.keys));
+    if (this.settings.width !== size.width * 2 || this.settings.height !== size.height || !this.target) {
+      this.target?.destroy(); this.texture?.destroy(); this.captureContext?.unconfigure();
+      this.settings = { ...this.settings, width: size.width * 2, height: size.height, fps: 90 };
+      const device = a.graphicsDevice.wgpu; if (!device) { this.reportError('WebGPU engine unavailable'); return; }
+      this.texture = new pc.Texture(a.graphicsDevice, { name: 'ArcadeVRStereo', width: this.settings.width, height: size.height, format: pc.PIXELFORMAT_RGBA8, mipmaps: false });
+      this.target = new pc.RenderTarget({ colorBuffer: this.texture, depth: true, samples: 1 });
+      this.captureCanvas = new OffscreenCanvas(this.settings.width, size.height); this.captureContext = this.captureCanvas.getContext('webgpu') || undefined;
+      this.captureContext?.configure({ device, format: 'rgba8unorm', alphaMode: 'opaque', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST });
+      cam.renderTarget = this.target; if (this.rightCamera?.camera) this.rightCamera.camera.renderTarget = this.target;
+    }
+    a.tick(packet.time);
+  }
+  endXR(reconnect = true): void {
+    const a = this.application, settings = this.savedXRSettings; this.xrPacket = undefined; this.tracking = undefined;
+    if (a && this.originalAnimation) { a.requestAnimationFrame = this.originalAnimation; this.originalAnimation = undefined; a.requestAnimationFrame(); }
+    this.rightCamera?.destroy(); this.rightCamera = undefined; this.savedXRSettings = undefined; this.xrUI = 'dom';
+    if (reconnect && settings && a) this.connect(settings);
+  }
   onState: (state: RuntimeState) => void = () => {};
   onFrame: (bitmap: ImageBitmap, id: number) => void = bitmap => bitmap.close();
   ready(): boolean { const a = app(); return !!player() && !!a && (a.root.findComponents('render').length + a.root.findComponents('model').length) > 0; }
   status(): RuntimeState {
     const p = player(), now = performance.now(); this.frameTimes = this.frameTimes.filter(time => now - time < 2000);
     const count = this.frameTimes.length, elapsed = count > 1 ? now - (this.frameTimes[0] || now) : 0;
-    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: false, supported: !!navigator.xr, mode: 'flat', ui: 'dom', hands: 0 }, error: this.error };
+    return { connected: this.connected, ready: this.ready(), backend: this.application?.graphicsDevice.deviceType || '', player: p ? { name: p.name, position: vector(p.getPosition()) } : null, look: { yaw: this.yaw, pitch: this.pitch }, camera: this.headCamera ? vector(this.headCamera.getPosition()) : null, frames: this.frames, renderFPS: elapsed > 0 ? (count - 1) * 1000 / elapsed : 0, captureMs: this.captureMs, dimensions: { width: this.settings.width, height: this.settings.height }, xr: { active: !!this.xrPacket, supported: !!navigator.xr, mode: this.xrPacket ? 'same-runtime-webgpu-stereo' : 'flat', ui: this.xrUI, hands: this.xrPacket?.hands.length || 0 }, error: this.error };
   }
   connect(settings: RenderSettings): RuntimeState {
     const a = app(), pc = window.pc, p = player(), input = inputManager();
@@ -87,40 +129,51 @@ export class EngineController {
     if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = nodes(p); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); }
     for (const entity of nodes(p)) for (const mesh of [...entity.render?.meshInstances || [], ...entity.model?.meshInstances || []]) if (!this.body.has(mesh)) {
       const saved = { visible: mesh.isVisibleFunc, cull: mesh.cull }; this.body.set(mesh, saved); mesh.cull = true;
-      mesh.isVisibleFunc = (view: PC.Camera) => this.hiddenBody && view === cam.camera ? false : saved.visible ? saved.visible.call(mesh, view) : !saved.cull || view.frustum.containsAabb(mesh.aabb);
+      mesh.isVisibleFunc = (view: PC.Camera) => this.hiddenBody && (view === cam.camera || view === this.rightCamera?.camera?.camera) ? false : saved.visible ? saved.visible.call(mesh, view) : !saved.cull || view.frustum.containsAabb(mesh.aabb);
     }
-    if (!this.settings.debug) { for (const candidate of a.root.findComponents('camera') as PC.CameraComponent[]) if (candidate !== cam) { if (!this.savedCameras.has(candidate)) this.savedCameras.set(candidate, candidate.enabled); candidate.enabled = false; } }
+    if (!this.settings.debug || this.xrPacket) { for (const candidate of a.root.findComponents('camera') as PC.CameraComponent[]) if (candidate !== cam && candidate !== this.rightCamera?.camera) { if (!this.savedCameras.has(candidate)) this.savedCameras.set(candidate, candidate.enabled); candidate.enabled = false; } }
     else cam.enabled = !this.busy && !this.waitingAck && performance.now() - this.lastCapture >= 1000 / this.settings.fps - 2;
+    if (this.xrPacket && this.tracking) {
+      const center = this.tracking.world(this.xrPacket.center, vector(p.getPosition()));
+      const forward = rotateForward(center.orientation); this.yaw = Math.atan2(-forward.x, -forward.z) * 180 / Math.PI; this.pitch = Math.asin(Math.max(-1, Math.min(1, forward.y))) * 180 / Math.PI;
+    }
     const pose = new pc.Quat().setFromEulerAngles(this.pitch, this.yaw, 0), body = new pc.Quat().setFromEulerAngles(0, this.yaw + 180, 0); p.setRotation(body);
     if (this.avatarYaw) { this.boneRotations.set(this.avatarYaw, this.avatarYaw.getLocalRotation().clone()); this.avatarYaw.setRotation(body); }
     if (this.head) { this.boneRotations.set(this.head, this.head.getLocalRotation().clone()); this.headReference ||= body.clone().invert().mul(this.head.getRotation()); this.head.setRotation(pose.clone().mul(new pc.Quat().setFromEulerAngles(0, 180, 0)).mul(this.headReference)); }
     const position = p.getPosition();
     this.headCamera?.setPosition(position.x, position.y + this.eyeHeight, position.z); this.headCamera?.setRotation(pose);
+    if (this.xrPacket && this.tracking) for (const eye of this.xrPacket.views) {
+      const camera = eye.eye === 'left' ? this.headCamera : this.rightCamera, component = camera?.camera; if (!camera || !component) continue;
+      const world = this.tracking.world(eye, vector(p.getPosition())); camera.setPosition(world.position.x, world.position.y, world.position.z); camera.setRotation(new pc.Quat(world.orientation.x, world.orientation.y, world.orientation.z, world.orientation.w));
+      const rect = new pc.Vec4(eye.eye === 'left' ? 0 : .5, 0, .5, 1); component.rect = rect; component.scissorRect = rect; component.enabled = !this.busy;
+      const projection = new pc.Mat4(); projection.set(eye.projection); projection.data[14] = (projection.data[14] || 0) * this.tracking.scale; component.calculateProjection = matrix => matrix.copy(projection);
+      component.nearClip = .05 * this.tracking.scale; component.farClip = 1000 * this.tracking.scale;
+    }
   };
   private afterRender = (): void => { for (const [bone, rotation] of this.boneRotations) bone.setLocalRotation(rotation); this.boneRotations.clear(); };
   private async capture(): Promise<void> {
     const a = this.application, camera = this.headCamera; if (!a || !camera || !this.connected) return;
     const now = performance.now(); this.frameTimes.push(now);
     if (now - this.lastState > 200) { this.lastState = now; this.onState(this.status()); }
-    if (!this.settings.debug || !camera.camera?.enabled || this.busy || this.waitingAck || now - this.lastCapture < 1000 / this.settings.fps - 2) return;
-    this.busy = true; this.lastCapture = now;
+    if ((!this.settings.debug && !this.xrPacket) || !camera.camera?.enabled || this.busy || this.waitingAck || now - this.lastCapture < 1000 / this.settings.fps - 2) return;
+    this.busy = true; this.lastCapture = now; const xrFrame = this.xrPacket;
     try {
       const gd = a.graphicsDevice, device = gd.wgpu, texture = this.texture as PC.Texture & { impl?: { gpuTexture?: GPUTexture } };
       if (!device || !texture?.impl?.gpuTexture || !this.captureContext || !this.captureCanvas) return;
       const encoder = device.createCommandEncoder(); encoder.copyTextureToTexture({ texture: texture.impl.gpuTexture }, { texture: this.captureContext.getCurrentTexture() }, { width: this.settings.width, height: this.settings.height }); device.queue.submit([encoder.finish()]);
       const bitmap = await createImageBitmap(this.captureCanvas); if (!this.connected || camera !== this.headCamera) { bitmap.close(); return; }
-      this.frames++; this.waitingAck = true; this.onFrame(bitmap, ++this.frameId); this.captureMs = performance.now() - now;
+      this.frames++; if (this.xrPacket && xrFrame) this.onXRFrame(bitmap, xrFrame); else { this.waitingAck = true; this.onFrame(bitmap, ++this.frameId); } this.captureMs = performance.now() - now;
     } catch (error) { this.error = error instanceof Error ? error.message : String(error); } finally { this.busy = false; }
   }
   acknowledge(id: number): void { if (id === this.frameId) this.waitingAck = false; }
-  input(data: { x: number; z: number; keys: string[] }): void { this.movement = { x: Math.max(-1, Math.min(1, finite(data.x))), z: Math.max(-1, Math.min(1, finite(data.z))) }; this.lastInput = performance.now(); this.setKeys(new Set(data.keys.filter(key => /^(Key[A-Z]|Digit[0-9]|Space|ShiftLeft|KeyC)$/.test(key)))); }
+  input(data: { x: number; z: number; keys: string[] }): void { if (this.xrPacket) return; this.movement = { x: Math.max(-1, Math.min(1, finite(data.x))), z: Math.max(-1, Math.min(1, finite(data.z))) }; this.lastInput = performance.now(); this.setKeys(new Set(data.keys.filter(key => /^(Key[A-Z]|Digit[0-9]|Space|ShiftLeft|KeyC)$/.test(key)))); }
   look(yaw: number, pitch: number): void { this.yaw = ((finite(yaw) + 180) % 360 + 360) % 360 - 180; this.pitch = Math.max(-85, Math.min(85, finite(pitch))); this.beforeRender(); }
   bodyVisible(visible: boolean): void { this.hiddenBody = !visible; }
   private setKeys(next: Set<string>): void { const emit = (code: string, down: boolean) => { const key = code === 'Space' ? ' ' : code === 'ShiftLeft' ? 'Shift' : code.replace(/^(Key|Digit)/, '').toLowerCase(), keyCode = code === 'Space' ? 32 : code === 'ShiftLeft' ? 16 : key.toUpperCase().charCodeAt(0); window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key, keyCode, which: keyCode, bubbles: true, cancelable: true })); }; for (const key of this.keys) if (!next.has(key)) emit(key, false); for (const key of next) if (!this.keys.has(key)) emit(key, true); this.keys = next; }
   release(): void { this.setKeys(new Set()); this.movement = { x: 0, z: 0 }; }
   private restoreBody(): void { for (const [mesh, saved] of this.body) { mesh.isVisibleFunc = saved.visible; mesh.cull = saved.cull; } this.body.clear(); }
   stop(): void {
-    this.release(); this.afterRender(); this.restoreBody(); const a = this.application; this.connected = false;
+    if (this.xrPacket) this.endXR(false); this.release(); this.afterRender(); this.restoreBody(); const a = this.application; this.connected = false;
     if (a) { if (this.originalExposure !== undefined) a.scene.exposure = this.originalExposure; a.off('prerender', this.beforeRender); a.off('postrender', this.afterRender); if (this.originalFrameEnd) a.graphicsDevice.frameEnd = this.originalFrameEnd; if (this.originalSize) { a.graphicsDevice.maxPixelRatio = this.originalSize.ratio; a.setCanvasResolution(this.originalSize.mode, this.originalSize.width / this.originalSize.ratio, this.originalSize.height / this.originalSize.ratio); } }
     for (const [cam, enabled] of this.savedCameras) if (cam.entity.parent) cam.enabled = enabled; this.savedCameras.clear();
     if (this.source) this.manager?.removeSource(this.source); this.source = undefined; this.manager = undefined;

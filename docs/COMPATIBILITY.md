@@ -2,7 +2,7 @@
 
 The live checker reads the entire public marketplace catalog, resolves each published play URL, checks runtime adapter injection, and compares sampled signed thumbnail/vignette bytes through the proxy. It also checks shader libraries, WASM and six skybox textures. Run `npm run coverage:live` against a running local server. Reports go to ignored `work/compatibility.json` and omit signed URLs.
 
-The first sweep covered **121 public games and 346 requests**, with zero proxy discrepancies: 125 upstream HTTP 200 responses and 221 partial asset HTTP 206 responses matched. This proves transport/bootstrap coverage, not that every game reaches gameplay or every dynamic asset loads. A larger dependency sweep follows the same reproducible procedure.
+The first sweep covered **121 public games and 346 requests**, with zero proxy discrepancies: 125 upstream HTTP 200 responses and 221 partial asset HTTP 206 responses matched. This proves transport/bootstrap coverage, not that every game reaches gameplay or every dynamic asset loads. The expanded shader/WASM/skybox sweep completed **352 checks**, also with zero discrepancies.
 
 Browser checks found and fixed a relative-path regression: Arcade's `<base href="/">` must govern fetch/XHR texture paths. Resolving against the `/play/...` document instead returns an HTML fallback that cannot be decoded as an image. Six Seven Arena now reaches its original Start screen through the local proxy.
 

@@ -1,10 +1,12 @@
 import './globals.js';
+import { XRPresenter } from './xr-presenter.js';
 import { EngineController } from './engine.js';
 import { CHANNEL, finite, isRecord, type RenderSettings, type RequestMessage } from '../shared/protocol.js';
 const boot = window.ARCADE_PROXY;
 if (!boot) throw Error('The Arcade proxy runtime configuration is missing.');
 const session = crypto.randomUUID(), engine = new EngineController();
 window.arcadeVR = engine;
+new XRPresenter(engine);
 let owner: { source: Window; origin: string } | undefined;
 function send(data: Record<string, unknown>, transfer: Transferable[] = []): void { owner?.source.postMessage({ channel: CHANNEL, direction: 'stream', session, ...data }, owner.origin, transfer); }
 engine.onState = state => send({ type: 'state', state });
@@ -33,4 +35,4 @@ window.addEventListener('message', event => {
   void execute(request).then(result => parent.postMessage({ channel: CHANNEL, direction: 'response', id: request.id, session, ok: true, result }, event.origin)).catch(error => parent.postMessage({ channel: CHANNEL, direction: 'response', id: request.id, session, ok: false, error: error instanceof Error ? error.message : String(error) }, event.origin));
 });
 window.addEventListener('pagehide', () => engine.stop());
-const style = document.createElement('style'); style.textContent = 'html,body{margin:0;background:#000}'; document.head.append(style);
+const style = document.createElement('style'); style.textContent = 'html,body{margin:0;background:#000}.arcade-xr-active,.arcade-xr-active body,.arcade-xr-active #root{background:transparent!important}.arcade-xr-active canvas{visibility:hidden!important}'; document.head.append(style);

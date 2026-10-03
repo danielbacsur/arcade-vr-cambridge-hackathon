@@ -4,7 +4,7 @@ Work through these tasks in order. Significant changes get separate commits. Do 
 
 - [x] Remove obsolete extension, relay, fixture, raw evidence and prototype files from the production repository.
 - [x] Replace Python and JavaScript sources with a TypeScript-only server and browser runtime; add strict checks, reproducible builds, linting and meaningful tests.
-- [ ] Support single-player and multiplayer URLs, external asset hosts, streaming and multiplayer connections. Run a reproducible, broad compatibility matrix; identify upstream/authentication/network failures accurately.
+- [x] Support single-player and multiplayer URLs, external asset hosts, streaming and multiplayer connections. Run a reproducible, broad compatibility matrix; identify upstream/authentication/network failures accurately.
 - [ ] Request immersive entry at game readiness when the browser permits it; otherwise reuse the game's existing Start interaction, with no redundant entry button. Do not bypass browser consent or user activation requirements.
 - [ ] Correct per-eye projection/aspect/resolution, remove animated head-bone camera anchoring, preserve consistent tracking space, synchronize frames and stabilize the world.
 - [ ] Map controller grips and WebXR hand joints onto generic Mixamo arms/hands with calibrated inverse kinematics, missing-joint handling and pose restoration.
@@ -26,3 +26,5 @@ No Quest is available during implementation. Simulator tests validate math, fram
 - TypeScript migration: strict typecheck, lint, 20 integration/routing tests and production build pass. No Python application or extension is required.
 
 - Compatibility: public catalog sweep 121 games / 346 requests, zero discrepancies; Six Seven reaches Start, expired multiplayer link recovers into a fresh server. Broad in-game/hardware checks remain distinct from transport coverage.
+
+- Immersive core: same-document activation and session ownership, native per-eye projection, headset frame clock, bounded stereo GPU capture and rotational reprojection implemented. Hand and UI fallback work follows; hardware remains unverified.
