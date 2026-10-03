@@ -1,5 +1,6 @@
 import type { XRPacket, Pose, HandPose } from '../shared/protocol.js';
 import { eyeDimensions, multiply } from './tracking.js';
+import { dispatchFeatures, type FeatureContext } from './features.js';
 import { WorldUI } from './world-ui.js';
 import { AutomaticEntry } from './xr-entry.js';
 import type { EngineController } from './engine.js';
@@ -19,6 +20,9 @@ export class XRPresenter {
   private ui?: WorldUI;
   private id = 0;
   private menuPressed = false;
+  private featureContext?: FeatureContext;
+  private renderScale = 1;
+  private vignette = 0;
   private entry: AutomaticEntry;
   constructor(private readonly engine: EngineController) {
     this.entry = new AutomaticEntry({ supported: () => this.supported, ready: () => engine.ready(), active: () => !!this.session, request: () => this.start(), report: message => engine.reportError(message) });
@@ -50,7 +54,10 @@ export class XRPresenter {
       document.documentElement.classList.add('arcade-xr-active'); this.engine.xrUI = session.domOverlayState ? 'dom-overlay' : 'world-panel';
       this.ui = new WorldUI(gl, message => this.engine.reportError(message), !session.domOverlayState, (x, y) => this.engine.clickUI(x, y)); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
       const canvasElement = this.engine.canvas(); if (canvasElement) canvasElement.dataset.arcadeVrEngine = 'true';
-      session.addEventListener('select', event => { if (!this.space || !this.ui) return; const ray = event.frame.getPose(event.inputSource.targetRaySpace, this.space); if (ray) this.ui.click(pose(ray.transform)); });
+      session.addEventListener('select', event => { if (!this.space || !this.ui) return; const ray = event.frame.getPose(event.inputSource.targetRaySpace, this.space); const handled = ray ? this.ui.click(pose(ray.transform)) : false; if (this.featureContext) dispatchFeatures({ type: 'select', context: this.featureContext, source: event.inputSource, handled }); });
+      this.featureContext = { engine: this.engine, session, space: this.space, gl, ui: this.ui, setRenderScale: value => { if (Number.isFinite(value)) this.renderScale = Math.max(.5, Math.min(1, value)); }, setVignette: value => { if (Number.isFinite(value)) this.vignette = Math.max(0, Math.min(.8, value)); } };
+      this.engine.onBeforeXRRender = packet => { if (this.featureContext) dispatchFeatures({ type: 'render', context: this.featureContext, packet }); };
+      dispatchFeatures({ type: 'start', context: this.featureContext });
       session.requestAnimationFrame(this.frame);
     } catch (error) { await session.end(); throw error; }
   }
@@ -73,7 +80,8 @@ export class XRPresenter {
       if (source.handedness === 'left' && source.gamepad?.buttons[5]?.pressed) menuPressed = true;
     }
     const packet: XRPacket = { frameId: ++this.id, time, center: pose(viewer.transform), views, hands, move, keys };
-    const size = eyeDimensions(views[0]?.viewport.width || 1, views[0]?.viewport.height || 1);
+    if (this.featureContext) dispatchFeatures({ type: 'frame', context: this.featureContext, packet, frame });
+    const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale);
     if (menuPressed && !this.menuPressed) this.ui?.anchor(packet.center); this.menuPressed = menuPressed;
     this.engine.renderXR(packet, size); this.ui?.update(time);
     gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -88,15 +96,15 @@ export class XRPresenter {
       gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'inverseProjection'), false, inverse.data);
       gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'oldProjection'), false, new Float32Array(captured.projection));
       gl.uniform4f(gl.getUniformLocation(this.program, 'rotation'), delta.x, delta.y, delta.z, delta.w);
-      const viewport = view.viewport; gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height); gl.uniform1f(gl.getUniformLocation(this.program, 'eye'), view.eye === 'left' ? 0 : 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); const xrView = viewer.views.find(eye => eye.eye === view.eye); if (xrView) this.ui?.draw(xrView.projectionMatrix, xrView.transform.inverse.matrix, packet.center); }
+      const viewport = view.viewport; gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height); gl.uniform1f(gl.getUniformLocation(this.program, 'vignette'), this.vignette); gl.uniform1f(gl.getUniformLocation(this.program, 'eye'), view.eye === 'left' ? 0 : 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); const xrView = viewer.views.find(eye => eye.eye === view.eye); if (xrView) this.ui?.draw(xrView.projectionMatrix, xrView.transform.inverse.matrix, packet.center); if (this.featureContext) dispatchFeatures({ type: 'eye', context: this.featureContext, eye: view }); }
   };
 
-  private end = (): void => { this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
+  private end = (): void => { if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
 }
 
 export function createStereoProgram(gl: WebGL2RenderingContext): WebGLProgram {
     const shader = (type: number, source: string) => { const value = gl.createShader(type); if (!value) throw Error('Shader unavailable'); gl.shaderSource(value, source); gl.compileShader(value); if (!gl.getShaderParameter(value, gl.COMPILE_STATUS)) throw Error(gl.getShaderInfoLog(value) || 'Shader failed'); return value; };
     const vertex = shader(gl.VERTEX_SHADER, '#version 300 es\nin vec2 position;out vec2 uv;void main(){uv=position*.5+.5;gl_Position=vec4(position,0.,1.);}');
-    const fragment = shader(gl.FRAGMENT_SHADER, '#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D image;uniform float eye;uniform mat4 inverseProjection;uniform mat4 oldProjection;uniform vec4 rotation;out vec4 color;void main(){vec4 ray=inverseProjection*vec4(uv*2.-1.,1.,1.);vec3 direction=ray.xyz/ray.w;direction+=2.*cross(rotation.xyz,cross(rotation.xyz,direction)+rotation.w*direction);vec4 clip=oldProjection*vec4(direction,0.);vec2 sampleUV=clip.xy/clip.w*.5+.5;if(clip.w<=0.||any(lessThan(sampleUV,vec2(0.)))||any(greaterThan(sampleUV,vec2(1.)))){color=vec4(0.,0.,0.,1.);}else{color=texture(image,vec2((sampleUV.x+eye)*.5,1.-sampleUV.y));}}');
+    const fragment = shader(gl.FRAGMENT_SHADER, '#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D image;uniform float eye;uniform float vignette;uniform mat4 inverseProjection;uniform mat4 oldProjection;uniform vec4 rotation;out vec4 color;void main(){vec4 ray=inverseProjection*vec4(uv*2.-1.,1.,1.);vec3 direction=ray.xyz/ray.w;direction+=2.*cross(rotation.xyz,cross(rotation.xyz,direction)+rotation.w*direction);vec4 clip=oldProjection*vec4(direction,0.);vec2 sampleUV=clip.xy/clip.w*.5+.5;if(clip.w<=0.||any(lessThan(sampleUV,vec2(0.)))||any(greaterThan(sampleUV,vec2(1.)))){color=vec4(0.,0.,0.,1.);}else{color=texture(image,vec2((sampleUV.x+eye)*.5,1.-sampleUV.y));color.rgb*=1.-vignette*smoothstep(.25,.65,length(uv-.5));}}');
     const program = gl.createProgram(); if (!program) throw Error('Program unavailable'); gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program); gl.deleteShader(vertex); gl.deleteShader(fragment); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program) || 'Program failed'); return program;
   }

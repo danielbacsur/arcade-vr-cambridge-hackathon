@@ -1,5 +1,5 @@
 import type * as PC from 'playcanvas';
-import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPacket } from '../shared/protocol.js';
+import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPacket, type Pose } from '../shared/protocol.js';
 import { RigHands } from './hands.js';
 import { TrackingSpace, rotate } from './tracking.js';
 import type { EngineApplication, InputManager, InputSource } from './globals.js';
@@ -69,6 +69,9 @@ export class EngineController {
   canvas(): HTMLCanvasElement | undefined { const canvas = this.application?.graphicsDevice.canvas; return canvas instanceof HTMLCanvasElement ? canvas : undefined; }
   clickUI(x: number, y: number): void { const canvas = this.canvas(); if (!canvas) return; const box = canvas.getBoundingClientRect(); for (const name of ['mousemove', 'mousedown', 'mouseup']) canvas.dispatchEvent(new MouseEvent(name, { clientX: box.left + x / 1920 * box.width, clientY: box.top + y / 1080 * box.height, bubbles: true, cancelable: true, button: 0, buttons: name === 'mousedown' ? 1 : 0 })); }
   reportError(message: string): void { this.error = message; this.onState(this.status()); }
+  onBeforeXRRender: (packet: XRPacket) => void = () => {};
+  worldPose(pose: Pose): Pose | undefined { const root = player(); return root && this.tracking?.world(pose, vector(root.getPosition())); }
+  turn(degrees: number): void { if (Number.isFinite(degrees)) this.tracking?.turn(degrees); }
   resetTracking(): void { this.trackingReset = true; }
   renderXR(packet: XRPacket, size: { width: number; height: number }): void {
     const a = this.application, pc = window.pc, cam = this.headCamera?.camera;
@@ -88,7 +91,7 @@ export class EngineController {
     }
     if (this.trackingReset) { this.tracking?.calibrate(packet.center, this.yaw); this.trackingReset = false; }
     this.xrPacket = packet; this.lastInput = performance.now(); this.movement = packet.move; this.setKeys(new Set(packet.keys));
-    if (this.settings.width !== size.width * 2 || this.settings.height !== size.height || !this.target) {
+    if (!this.busy && (this.settings.width !== size.width * 2 || this.settings.height !== size.height || !this.target)) {
       this.target?.destroy(); this.texture?.destroy(); this.captureContext?.unconfigure();
       this.settings = { ...this.settings, width: size.width * 2, height: size.height, fps: 90 };
       const device = a.graphicsDevice.wgpu; if (!device) { this.reportError('WebGPU engine unavailable'); return; }
@@ -165,6 +168,7 @@ export class EngineController {
     this.headCamera?.setPosition(position.x, position.y + this.eyeHeight, position.z); this.headCamera?.setRotation(pose);
     if (this.uiCamera?.camera) this.uiCamera.camera.enabled = !this.busy && performance.now() - this.lastUIFrame >= 125;
     if (this.xrPacket && this.tracking) this.trackedHands = this.hands?.apply(this.xrPacket, this.tracking, p, bone => { if (!this.boneRotations.has(bone)) this.boneRotations.set(bone, bone.getLocalRotation().clone()); }) || 0;
+    if (this.xrPacket) this.onBeforeXRRender(this.xrPacket);
     if (this.xrPacket && this.tracking) for (const eye of this.xrPacket.views) {
       const camera = eye.eye === 'left' ? this.headCamera : this.rightCamera, component = camera?.camera; if (!camera || !component) continue;
       const world = this.tracking.world(eye, vector(p.getPosition())); camera.setPosition(world.position.x, world.position.y, world.position.z); camera.setRotation(new pc.Quat(world.orientation.x, world.orientation.y, world.orientation.z, world.orientation.w));

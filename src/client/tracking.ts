@@ -23,5 +23,6 @@ export class TrackingSpace {
     const offset = rotate(this.heading, { x: (pose.position.x - origin.x) * this.scale, y: (pose.position.y - origin.y) * this.scale, z: (pose.position.z - origin.z) * this.scale });
     return { position: { x: root.x + offset.x, y: root.y + this.eyeHeight + offset.y, z: root.z + offset.z }, orientation: multiply(this.heading, pose.orientation) };
   }
+  turn(degrees: number): void { const half = degrees * Math.PI / 360; this.heading = multiply({ x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) }, this.heading); }
   reset(): void { this.origin = undefined; }
 }
