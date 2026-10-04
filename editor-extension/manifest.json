@@ -1,0 +1,1 @@
+{"manifest_version":3,"name":"Arcade VR editor sandbox","version":"1.0.0","description":"Hand and controller input for Arcade's native editor through a spatial panel.","content_scripts":[{"matches":["https://editor.joinarcade.ai/*"],"js":["editor.js"],"run_at":"document_idle","world":"MAIN"}]}

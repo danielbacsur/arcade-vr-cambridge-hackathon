@@ -1,0 +1,6 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { editorPointer } from '../src/client/editor-pointer.js';
+afterEach(() => vi.unstubAllGlobals());
+describe('editor input adapter', () => {
+  it('retains event order and left/middle/right button masks', () => { class Input extends Event { constructor(type: string, options: Record<string, unknown>) { super(type, options); for (const [key, value] of Object.entries(options)) if (!['bubbles', 'cancelable', 'composed'].includes(key)) Object.defineProperty(this, key, { value }); } } vi.stubGlobal('PointerEvent', Input); vi.stubGlobal('MouseEvent', Input); const events: Event[] = [], target = { dispatchEvent(event: Event) { events.push(event); return true; } }; editorPointer(target, 'down', 100, 200, 2); editorPointer(target, 'up', 120, 210, 2); expect(events.map(event => event.type)).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup']); expect((events[1] as MouseEvent).buttons).toBe(2); expect((events[3] as MouseEvent).buttons).toBe(0); events.length = 0; editorPointer(target, 'down', 1, 2, 1); expect((events[1] as MouseEvent).buttons).toBe(4); events.length = 0; editorPointer(target, 'up', 1, 2); expect(events.map(event => event.type)).toEqual(['pointerup', 'mouseup', 'click']); });
+});
