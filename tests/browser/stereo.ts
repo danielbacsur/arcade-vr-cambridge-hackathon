@@ -10,8 +10,9 @@ export async function verifyStereo(): Promise<Record<string, unknown>> {
   if (device.deviceType !== 'webgpu') { device.destroy(); canvas.remove(); throw Error('Actual WebGPU required for this fixture'); }
   const application = new pc.Application(canvas, { graphicsDevice: device }), sources = new Set<InputSource>(), engine = new EngineController();
   const nativeAnimation = (application as EngineApplication).requestAnimationFrame;
-  let material: pc.StandardMaterial | undefined, panel: WorldUI | undefined;
+  let material: pc.StandardMaterial | undefined, sky: pc.Texture | undefined, panel: WorldUI | undefined;
   try {
+    sky = new pc.Texture(device, { name: 'world-fixed-sky-probe', width: 4, height: 4, cubemap: true, mipmaps: false, format: pc.PIXELFORMAT_RGBA8, levels: [Array.from({length:6}, (_,face) => { const data = new Uint8Array(64); for (let i = 0; i < 64; i += 4) data.set([0,60 + face * 20,180,255],i); return data; })] }); application.scene.skybox = sky;
     const actor = new pc.Entity('player'); actor.setPosition(0, .9, 0); actor.setEulerAngles(0, 180, 0); application.root.addChild(actor);
     const headBone = new pc.Entity('mixamorig:Head'); headBone.setLocalPosition(0, .72, 0); actor.addChild(headBone); for (const side of ['Left', 'Right']) { const foot = new pc.Entity('mixamorig:' + side + 'Foot'); foot.setLocalPosition(side === 'Left' ? -.15 : .15, -.9, 0); actor.addChild(foot); }
     const camera = new pc.Entity('main-camera'); camera.addComponent('camera', { clearColor: new pc.Color(0, 0, 0, 1) }); application.root.addChild(camera);
@@ -44,7 +45,9 @@ export async function verifyStereo(): Promise<Record<string, unknown>> {
     const color = Array.from(data.slice((160 * 640 + 160) * 4, (160 * 640 + 160) * 4 + 4));
     const srgb = Math.abs((color[0] || 0) - 128) < 8 && (color[1] || 0) < 8 && (color[2] || 0) < 8;
     const disparity = (sum[0] || 0) / Math.max(1, count[0] || 0) - (sum[1] || 0) / Math.max(1, count[1] || 0);
+    const skyRendered = (data[1] || 0) > 20 && (data[2] || 0) > 20;
+    const skyLensMatches = (application.root.findComponents('camera') as pc.CameraComponent[]).filter(camera => ['ArcadeVRPlayerCamera','ArcadeVRRightEye'].includes(camera.entity.name)).every(camera => Array.from(camera.camera.getProjectionMatrixSkybox().data).every((value,index) => Math.abs(value - (projection[index] || 0)) < .00001));
     engine.endXR(); engine.stop(); const restored = light.light?.shadowResolution === 2048 && (application as EngineApplication).requestAnimationFrame === nativeAnimation && sources.size === 0 && camera.camera?.enabled === true && device.width === 960 && device.height === 540;
-    return { singleFlight, reducedShadows, ...frame, desktop, coloredPixels: count, centerRGBA: color, srgb, disparity, hudAlpha, hudCornerAlpha, blendedHUD: Array.from(blended), restored, verdict: desktop.hudBothEyes && desktop.eyeCameras === 2 && frame.width === 640 && frame.height === 320 && singleFlight && reducedShadows && frame.metadata && srgb && (count[0] || 0) > 100 && (count[1] || 0) > 100 && disparity > 5 && disparity < 7 && hudAlpha > 100 && hudAlpha < 160 && (blended[0] || 0) > 100 && (blended[0] || 0) < 160 && hudCornerAlpha < 10 && restored ? 'pass' : 'fail' };
-  } finally { panel?.destroy(); engine.stop(); application.destroy(); material?.destroy(); canvas.remove(); window.pcApp = undefined; window.gameManager = undefined; }
+    return { skyRendered, skyLensMatches, singleFlight, reducedShadows, ...frame, desktop, coloredPixels: count, centerRGBA: color, srgb, disparity, hudAlpha, hudCornerAlpha, blendedHUD: Array.from(blended), restored, verdict: skyRendered && skyLensMatches && desktop.hudBothEyes && desktop.eyeCameras === 2 && frame.width === 640 && frame.height === 320 && singleFlight && reducedShadows && frame.metadata && srgb && (count[0] || 0) > 100 && (count[1] || 0) > 100 && disparity > 5 && disparity < 7 && hudAlpha > 100 && hudAlpha < 160 && (blended[0] || 0) > 100 && (blended[0] || 0) < 160 && hudCornerAlpha < 10 && restored ? 'pass' : 'fail' };
+  } finally { panel?.destroy(); engine.stop(); application.destroy(); material?.destroy(); sky?.destroy(); canvas.remove(); window.pcApp = undefined; window.gameManager = undefined; }
 }

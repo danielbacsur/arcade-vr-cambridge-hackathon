@@ -120,3 +120,7 @@ Original HTML menus use a transparent view-following HUD that captures DOM chang
 ### Quest feedback revision
 
 Gameplay HUD/menu textures now follow the full head pose every frame. The original DOM is captured consistently into this view-relative HUD instead of relying on browser DOM-overlay support. Hand rays select, hold and drag controls; left-hand pinch steering drives the existing Arcade input source. The editor alone retains a world-anchored panel. Capture generation guards and bounded stall recovery protect XR re-entry; partial GPU capture failures close both allocations before reporting failure.
+
+### Sky projection consistency
+
+PlayCanvas calculates a separate sky projection which its custom camera projection callback does not automatically synchronize. Our eye and desktop stereo callbacks now copy the same lens matrix into both scene and sky projections after default lens evaluation. This includes asymmetric eye offsets and capture guard bands, preserving the original world sky orientation. Regression tests reproduce the old mismatch, verify yaw/pitch/roll direction consistency, and render a real cubemap through the WebGPU stereo fixture.

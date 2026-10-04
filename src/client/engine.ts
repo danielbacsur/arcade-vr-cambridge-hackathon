@@ -3,6 +3,7 @@ import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPa
 import { RigHands } from './hands.js';
 import { TrackingSpace, rotate } from './tracking.js';
 import { PreviewUI } from './preview-ui.js';
+import { setCameraProjection } from './camera-projection.js';
 import { capturePair } from './capture-pair.js';
 import type { EngineApplication, InputManager, InputSource } from './globals.js';
 const rotateForward = (q: import('../shared/protocol.js').Quaternion) => rotate(q, { x: 0, y: 0, z: -1 });
@@ -195,7 +196,7 @@ export class EngineController {
       this.headCamera?.setPosition(position.x - offset.x, position.y + this.eyeHeight - offset.y, position.z - offset.z);
       this.rightCamera.setPosition(position.x + offset.x, position.y + this.eyeHeight + offset.y, position.z + offset.z); this.rightCamera.setRotation(pose);
       const projection = new pc.Mat4().setPerspective(80, this.settings.width / 2 / this.settings.height, cam.nearClip, cam.farClip);
-      for (const [index, eye] of [cam, this.rightCamera.camera].entries()) { const rect = new pc.Vec4(index * .5, 0, .5, 1); eye.rect = rect; eye.scissorRect = rect; eye.calculateProjection = matrix => matrix.copy(projection); eye.enabled = cam.enabled; }
+      for (const [index, eye] of [cam, this.rightCamera.camera].entries()) { const rect = new pc.Vec4(index * .5, 0, .5, 1); eye.rect = rect; eye.scissorRect = rect; setCameraProjection(eye, projection); eye.enabled = cam.enabled; }
     }
     if (this.uiCamera?.camera) this.uiCamera.camera.enabled = !this.busy && performance.now() - this.lastUIFrame >= 250;
     if (this.xrPacket && this.tracking) this.trackedHands = this.hands?.apply(this.xrPacket, this.tracking, p, bone => { if (!this.boneRotations.has(bone)) this.boneRotations.set(bone, bone.getLocalRotation().clone()); }) || 0;
@@ -204,7 +205,7 @@ export class EngineController {
       const camera = eye.eye === 'left' ? this.headCamera : this.rightCamera, component = camera?.camera; if (!camera || !component) continue;
       const world = this.tracking.world(eye, vector(p.getPosition())); camera.setPosition(world.position.x, world.position.y, world.position.z); camera.setRotation(new pc.Quat(world.orientation.x, world.orientation.y, world.orientation.z, world.orientation.w));
       const rect = new pc.Vec4(eye.eye === 'left' ? 0 : .5, 0, .5, 1); component.rect = rect; component.scissorRect = rect; component.enabled = !this.busy;
-      const projection = new pc.Mat4(); projection.set(eye.captureProjection || eye.projection); projection.data[14] = (projection.data[14] || 0) * this.tracking.scale; component.calculateProjection = matrix => matrix.copy(projection);
+      const projection = new pc.Mat4(); projection.set(eye.captureProjection || eye.projection); projection.data[14] = (projection.data[14] || 0) * this.tracking.scale; setCameraProjection(component, projection);
       component.nearClip = .05 * this.tracking.scale; component.farClip = 1000 * this.tracking.scale;
     }
   };
