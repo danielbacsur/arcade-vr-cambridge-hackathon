@@ -47,7 +47,7 @@ sequenceDiagram
   W->>R: Frame acknowledgment
 ```
 
-Both panes use a 1280 × 720 document layout and matching aspect ratios. CSS scales the live iframe; rendering resolution changes separately. The desktop head feed defaults to 960 × 540 at up to 30 fps. One pending capture and one unacknowledged frame bound memory and latency. Blurring, hiding or navigating releases controls; stale input times out in the runtime.
+Both panes use a 1280 × 720 document layout and matching aspect ratios. CSS scales the live iframe; rendering resolution changes separately. The desktop head feed defaults to 1280 × 720 at up to 30 fps. One pending capture and one unacknowledged frame bound memory and latency. Blurring, hiding or navigating releases controls; stale input times out in the runtime.
 
 ## Immersive rendering
 
@@ -124,3 +124,9 @@ Gameplay HUD/menu textures now follow the full head pose every frame. The origin
 ### Sky projection consistency
 
 PlayCanvas calculates a separate sky projection which its custom camera projection callback does not automatically synchronize. Our eye and desktop stereo callbacks now copy the same lens matrix into both scene and sky projections after default lens evaluation. This includes asymmetric eye offsets and capture guard bands, preserving the original world sky orientation. Regression tests reproduce the old mismatch, verify yaw/pitch/roll direction consistency, and render a real cubemap through the WebGPU stereo fixture.
+
+### Simplified preview and stable initial HUD
+
+Laptop preview now uses one full-frame camera and forwards its bitmap directly without DOM or engine HUD compositing. The separate live game retains its native UI. Dragging updates yaw and pitch immediately. Hand locomotion is removed; hand menu pointers remain. Quest rendering quality returns to the original 2048 eye-buffer cap and adaptive 60% floor, original shadows, and full XR framebuffer resolution.
+
+The Quest runtime iframe has a fixed 1920 × 1080 layout scaled to fill the wrapper. Entry resets the canvas to the same size, notifies native Screen components and DOM resize listeners, then captures UI. HUD size and hit coordinates remain constant even if the outer browser window changes. Failed DOM captures retry and unchanged UI refreshes periodically so the first entry does not depend on reopening the browser.

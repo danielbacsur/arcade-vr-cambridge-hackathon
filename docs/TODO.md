@@ -77,3 +77,11 @@ The user reports more stable world tracking on Quest. The reported restart/black
 - [x] Validate safety/quality/projection regressions, real WebGPU stereo capture and clickable head-following UI on the laptop.
 
 Real Quest performance and physical gesture ergonomics require device testing; no on-device FPS claim is made.
+
+## Quality restoration and simpler preview
+
+- [x] Restore the earlier Quest pixel, shadow and adaptive-quality settings; retain sky alignment and capture safety fixes.
+- [x] Remove hand locomotion and its implementation; retain menu pointing and controller movement.
+- [x] Freeze VR UI layout, initialize Screen/DOM layout on entry, and refresh/retry the initial UI capture.
+- [x] Replace laptop stereo/UI compositing with one eye, one cutout and working yaw/pitch drag controls.
+- [x] Validate clean preview pixels, actual camera yaw/pitch, first-frame VR HUD alpha and original game shadow quality in the GPU fixture.

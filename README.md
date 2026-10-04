@@ -32,9 +32,9 @@ Open `http://localhost:8765`. Editor URLs use `http://editor.joinarcade.localhos
 
 ## Player
 
-Desktop has matching 16:9 live and head views with controls below. Both use a 1280 × 720 layout while the scene's render budget is adjustable independently. Head-view dragging controls the character's look; movement follows its heading. Connection is automatic. Mode selection detects immersive WebXR support without a manual override.
+Desktop has matching 16:9 live and single-eye head views with controls below. Both use a 1280 × 720 layout while the scene's render budget is adjustable independently. The head view renders one eye without UI; dragging controls yaw and pitch; movement follows its heading. Connection is automatic. Mode selection detects immersive WebXR support without a manual override.
 
-Arcade requires WebGPU. Keep it enabled even on browsers without `XRGPUBinding`. Immersive rendering uses native per-eye projection, a stable root anchor, direct look and hand IK. Original menus and HUD follow the view and support hand pointing, pinch selection and held dragging. Movement needs no visible joystick: hold your left hand open in front of your chest, then briefly hold a thumb/index pinch and move that hand to steer; release to stop. Right-hand index pinch handles menus. The browser consent request reuses a native game interaction, with no extra Enter VR button. Details are in [the architecture](docs/ARCHITECTURE.md). Hardware performance and comfort require a real headset; simulated checks are not hardware verification.
+Arcade requires WebGPU. Keep it enabled even on browsers without `XRGPUBinding`. Immersive rendering uses native per-eye projection, a stable root anchor, direct look and hand IK. Original menus and HUD follow the view and support hand pointing, pinch selection and held dragging. Hand locomotion has been removed. Movement uses laptop controls or physical controller sticks. Right-hand index pinch handles menus. The browser consent request reuses a native game interaction, with no extra Enter VR button. Details are in [the architecture](docs/ARCHITECTURE.md). Hardware performance and comfort require a real headset; simulated checks are not hardware verification.
 
 ## Deploy
 

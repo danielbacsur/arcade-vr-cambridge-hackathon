@@ -14,7 +14,7 @@ All five previously isolated feature branches are now merged into main, with a s
 
 The gameplay HUD follows the view, including pitch and roll. **Right-hand thumb/index pinch** selects buttons and holds/drag controls; a small cyan pointer shows its target. The added movement joystick and its label have been removed.
 
-For movement, hold the left hand open in front of your chest for at least 250 ms, then pinch the **left thumb and index fingertip** together for at least 180 ms within 1.5 seconds. This grabs a floating anchor at the current hand position. Move that hand forward/backward or left/right to steer; movement follows the viewing direction. Release to stop immediately. A 2 cm dead zone absorbs tremor and 10 cm displacement reaches full speed. A short, frame-rate-independent smoothing filter steadies active steering; returning to neutral, releasing or losing tracking bypasses the filter and stops immediately. Pinch hysteresis prevents flickering when fingertips separate slightly. Reacquired tracking requires the deliberate open-then-pinch gesture again. Lowering the hand, moving it behind you or a large tracking jump stops movement and disarms the gesture. Head translation is subtracted to reduce body sway. The right hand cannot activate locomotion.
+Hand movement gestures and the virtual joystick have been removed. Physical controllers and laptop controls retain movement. The laptop head preview shows one eye without the gameplay UI; drag it horizontally or vertically to look around.
 
 This uses native WebXR hand poses with the existing Arcade player controller; it is application-defined locomotion rather than an automatic browser walking feature. No permanent movement overlay is needed. Controller movement still works when a controller is available.
 
@@ -35,3 +35,5 @@ The laptop stereo pane also uses a lightweight SVG headset silhouette: mirrored 
 ## Rendering recovery
 
 A foreground capture stall of six seconds or a lost WebGL context exits XR, restores the game view and releases input. Tap the native game view to re-enter VR. Headset suspension does not count as a stall; resuming recalibrates tracking. Old asynchronous captures cannot alter a replacement renderer, and partial capture failures dispose successful bitmap allocations. Eye buffers use a uniform 960-pixel maximum dimension and the capture bridge is limited to 45 fps; native XR presentation and lens projections remain browser-controlled, while captures include a 35% tangent guard band. These changes address identified software failure paths, not a reproduced diagnosis of the reported Quest restart.
+
+The aggressive low-resolution/foveation/shadow reductions have been reverted to the earlier quality settings. VR UI uses a fixed 1920 × 1080 document and matching GPU target, refreshes on entry and periodically, and retries failed initial snapshots. Browser resizing does not change the runtime UI viewport.
