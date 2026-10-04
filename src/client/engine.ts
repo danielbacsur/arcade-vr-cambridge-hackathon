@@ -111,7 +111,7 @@ export class EngineController {
   }
   onState: (state: RuntimeState) => void = () => {};
   onFrame: (bitmap: ImageBitmap, id: number) => void = bitmap => bitmap.close();
-  ready(): boolean { const a = app(), loading = Array.from(document.querySelectorAll('[role="progressbar"]')).some(node => /loading|building world|assets|downloading/i.test(node.getAttribute('aria-label') || '') && node.getClientRects().length > 0); return !loading && !!player() && !!a && (a.root.findComponents('render').length + a.root.findComponents('model').length) > 0; }
+  ready(): boolean { const a = app(), loading = Array.from(document.querySelectorAll('[role="progressbar"]')).some(node => node.getClientRects().length > 0 && (/loading|building world|assets|downloading/i.test(node.getAttribute('aria-label') || '') || /loading/i.test(node.closest('[role="status"]')?.querySelector('h1,h2')?.textContent || ''))); return !loading && !!player() && !!a && (a.root.findComponents('render').length + a.root.findComponents('model').length) > 0; }
   status(): RuntimeState {
     const p = player(), now = performance.now(); this.frameTimes = this.frameTimes.filter(time => now - time < 2000);
     this.captureTimes = this.captureTimes.filter(time => now - time < 2000); const captureElapsed = this.captureTimes.length > 1 ? now - (this.captureTimes[0] || now) : 0;
@@ -120,7 +120,7 @@ export class EngineController {
   }
   connect(settings: RenderSettings): RuntimeState {
     const a = app(), pc = window.pc, p = player(), input = inputManager();
-    if (!a || !pc || !p || !input) throw Error('Waiting for the game and player controls.');
+    if (!this.ready() || !a || !pc || !p || !input) throw Error('Waiting for the game and player controls.');
     this.stop(); this.settings = { ...settings }; this.application = a; this.manager = input; this.originalExposure = a.scene.exposure; a.scene.exposure = settings.exposure;
     const gd = a.graphicsDevice, main = camera()?.camera;
     if (!main) throw Error('Waiting for the game camera.');
