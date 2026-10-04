@@ -3,10 +3,8 @@ flowchart LR
   CAL --> IK[Clamped two-bone arm IK]
   IK --> RIG[Mixamo wrist and finger bones]
   RIG --> RESTORE[Restore animation pose after rendering]
-  DOM[Original DOM menus] --> OVERLAY{DOM overlay available?}
-  OVERLAY -->|yes| NATIVE[Browser DOM overlay]
-  OVERLAY -->|no| SNAP[Mutation-driven DOM snapshot]
-  HUD[PlayCanvas UI layer] --> PANEL[Transparent world-space panel]
+  DOM[Original DOM menus] --> SNAP[Mutation-driven DOM snapshot]
+  HUD[PlayCanvas UI layer] --> PANEL[Transparent view-following gameplay HUD]
   SNAP --> PANEL
   RAY[Controller select or hand pinch] --> HIT[Panel ray hit]
   HIT --> CLICK[Original DOM click or canvas input]

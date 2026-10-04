@@ -50,3 +50,13 @@ See [compatibility evidence](COMPATIBILITY.md), [optional feature review](REVIEW
 - [x] Pass strict types, lint, build and 63 tests; verify the desktop HUD and XR transition with a real browser GPU fixture.
 
 Nothing pushed or deployed. See the updated [integrated feature guide](REVIEW.md).
+
+## Quest feedback follow-up
+
+- [x] Keep gameplay menus and HUD fixed to the view, including pitch/roll, while retaining the editor's spatial panel.
+- [x] Add a visible hand ray pointer and thumb/index pinch-and-drag HUD joystick; forward held UI pointer/touch input and release on tracking loss.
+- [x] Keep the alternate thumb/middle floating stick, suppressing it during index pinch.
+- [x] Guard stale captures, dispose partial bitmap failures, recover stalled/context-lost XR and reduce stereo-buffer pressure.
+- [x] Pass strict types, lint, build and 72 tests; browser probes pass for rotated-head UI selection, held movement, lost-ray stop and stereo/color/restoration.
+
+The user reports more stable world tracking on Quest. The reported restart/black screen has not been reproduced on hardware; recovery fixes cover identified software paths.

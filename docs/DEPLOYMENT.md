@@ -41,6 +41,6 @@ The consent prompt is browser-owned. An existing Start/game click requests XR wh
 | Multiplayer drops after about five minutes | Function lifetime; use the game's reconnect path or the long-lived Node deployment |
 | No VR consent on page load | No qualifying activation; use the original native Start/game interaction |
 | No immersive API | HTTPS, browser capabilities and iframe permissions; desktop fallback stays available |
-| UI capture is incomplete | Prefer native DOM overlay; cross-origin frames and some rasterized CSS are unsupported |
+| UI capture is incomplete | Use the view-following HUD and hand pointer; cross-origin frames and some rasterized CSS are unsupported |
 
 For local asset diagnosis, append `diagnostic=1` to the game URL. It logs decode MIME/size and failed HTML paths without signed query strings. Local server diagnostics use `ARCADE_DEBUG=1`; keep ignored captures out of commits. The live compatibility report also omits signed asset URLs.

@@ -25,3 +25,9 @@ The passing probe produced a 640 × 320 bitmap, 1,296 red target pixels per eye,
 ## Integrated laptop stereo preview
 
 The follow-up browser probe verifies two real desktop player cameras and the original engine HUD in both eye images, then enters the simulated-pose XR capture and checks all prior stereo/color/restoration assertions. The complete probe passes. Live Purrbound gameplay also displays its original DOM health/companion/action UI in both preview eyes; the screenshot is saved in `docs/assets/stereo-player-preview.png`. Desktop UI is overlaid directly on each eye for the jury demonstration; Quest retains spatial UI and native eye optics. All five features are merged into main, and strict types, lint, build and 63 tests pass.
+
+## Head-following HUD and hand interaction
+
+Gameplay now uses a view-following HUD instead of an anchored panel or browser-dependent DOM overlay. The editor remains spatial. A real browser probe rotates/translates the simulated head, clicks the original DOM button once, holds a joystick drag to full movement and verifies that a lost ray stops it. All checks pass. WebXR supplies hand poses and primary input events; Arcade's own player controller still implements movement. See the [hand input specification](https://immersive-web.github.io/webxr-hand-input/).
+
+Recovery tests cover capture-stall timing, suspension, and bitmap cleanup on either half of a failed stereo/HUD capture. A headset restart is not diagnosed from these tests. Foreground stalls exit to the native game view; tap the game to resume VR. The stereo capture bridge uses a uniform 1600-pixel eye-buffer cap and up to 60 captures per second to reduce peak buffer pressure, with unchanged native eye projection and presentation clock.

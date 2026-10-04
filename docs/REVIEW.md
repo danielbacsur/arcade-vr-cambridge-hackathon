@@ -10,13 +10,15 @@ All five previously isolated feature branches are now merged into main, with a s
 | Visible hands | Lightweight palms/finger lines with controller fallback | Visual scale and tracking |
 | Spatial editor | Original editor on a world-space panel; pinch/select and native placement, pan/orbit and Undo | Hand-driven editing and proxy authentication |
 
-## Hand-only movement
+## Hand-only movement and UI
 
-Pinch the **left thumb and middle fingertip** together to grab a floating joystick at the current hand position. Move that hand forward/backward or left/right to move the player; release to stop. A 2 cm dead zone absorbs small tremors; 10 cm displacement reaches full speed. Missing or invalid tracking immediately stops and resets the anchor. Head translation is subtracted to reduce body sway. Axes are calibrated to the heading when the pinch begins; movement follows the player's current viewing direction as with the controller stick. Index pinch remains available for native UI selection.
+The gameplay HUD stays fixed to the view, including pitch and roll. Point a tracked hand at the lower-left joystick, pinch thumb and index finger, and drag while holding the pinch. Release or loss of the hand ray stops movement. A cyan pointer shows where the hand ray hits. Point and pinch buttons to activate them; held drags also forward native pointer, mouse and touch events.
+
+Alternatively, pinch the **left thumb and middle fingertip** together to grab a floating joystick at the current hand position. Move that hand forward/backward or left/right to move the player; release to stop. A 2 cm dead zone absorbs small tremors; 10 cm displacement reaches full speed. Missing or invalid tracking immediately stops and resets the anchor. Head translation is subtracted to reduce body sway. Axes are calibrated to the heading when the pinch begins; movement follows the player's current viewing direction as with the controller stick. Index pinch remains available for UI selection and the HUD joystick, and suppresses the middle-finger locomotion gesture to avoid overlap.
 
 ## Laptop jury preview
 
-The right pane renders two genuine offset player cameras into one side-by-side texture. Each eye has its own aspect-correct projection. The original engine HUD and cached DOM menu capture are composited onto both eye images, while the original live view remains on the left. Dragging the right pane still changes player look. This desktop preview is illustrative: its fixed eye separation and flat UI overlay are not a claim to reproduce the exact Quest optics or world-panel placement. Quest continues to use native eye projections and interactive spatial UI.
+The right pane renders two genuine offset player cameras into one side-by-side texture. Each eye has its own aspect-correct projection. The original engine HUD and cached DOM menu capture are composited onto both eye images, while the original live view remains on the left. Dragging the right pane still changes player look. This desktop preview is illustrative: its fixed eye separation and flat UI overlay are not a claim to reproduce the exact Quest optics or world-panel placement. Quest continues to use native eye projections and a view-following interactive HUD.
 
 ## Editor and deliberate limits
 
@@ -24,6 +26,10 @@ The editor source image remains monoscopic on a stereoscopic spatial panel. Nati
 
 Quest hardware validation is still pending. E/C actions are game conventions rather than a universal API; visible hands are local rendering without colliders or multiplayer replication. DOM capture can omit unsupported cross-origin content or CSS. Browser consent still uses the original game's trusted Start interaction.
 
-Strict types, lint, production build and 63 tests pass after integration. A real browser GPU fixture verifies two desktop eye cameras with HUD in both eyes, native simulated-pose stereo capture, correct sRGB/alpha blending and renderer restoration. Actual headset comfort and performance are separate checks.
+Strict types, lint, production build and 72 tests pass after the hand-only HUD/recovery follow-up. A real browser GPU fixture verifies two desktop eye cameras with HUD in both eyes, native simulated-pose stereo capture, correct sRGB/alpha blending and renderer restoration. Actual headset comfort and performance are separate checks.
 
 The laptop stereo pane also uses a lightweight SVG headset silhouette: mirrored irregular eye openings with soft black edges and a nose-side cutout. It is a presentation overlay, does not intercept drag controls, and is hidden in immersive mode. It does not simulate lens optics or alter Quest projections.
+
+## Rendering recovery
+
+A foreground capture stall of six seconds or a lost WebGL context exits XR, restores the game view and releases input. Tap the native game view to re-enter VR. Headset suspension does not count as a stall; resuming recalibrates tracking. Old asynchronous captures cannot alter a replacement renderer, and partial capture failures dispose successful bitmap allocations. Eye buffers use a uniform 1600-pixel maximum dimension and the capture bridge is limited to 60 fps; native XR presentation and projections remain browser-controlled. These changes address identified software failure paths, not a reproduced diagnosis of the reported Quest restart.

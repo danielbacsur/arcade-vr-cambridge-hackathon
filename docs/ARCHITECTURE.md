@@ -70,7 +70,7 @@ flowchart TD
 
 The runtime owns the XR session so native game interactions can carry transient activation into `requestSession`. Readiness excludes Arcade's visible asset/world loading progress bar. There is no second Enter VR button. If loading finishes after activation expires, the existing Start/game interaction is still required. Browsers require activation and may show permission UI; automatic consent without any qualifying interaction cannot be guaranteed. [WebXR session rules](https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession).
 
-The engine's ordinary animation loop pauses during XR. Its update/render tick runs from the headset clock. Original gameplay cameras stop rendering; two injected cameras use each eye's actual pose and asymmetric projection. Eye dimensions use a single scale factor and a 2048-pixel per-dimension cap, preserving aspect and IPD. Desktop's 80-degree preview FOV is not used for immersive projection.
+The engine's ordinary animation loop pauses during XR. Its update/render tick runs from the headset clock. Original gameplay cameras stop rendering; two injected cameras use each eye's actual pose and asymmetric projection. Eye dimensions use a single scale factor and a 1600-pixel per-dimension cap, preserving aspect and IPD. Desktop's 80-degree preview FOV is not used for immersive projection.
 
 The game uses WebGPU. The compositor uses WebGL WebXR without requiring `XRGPUBinding`: a local GPU copy and transferable bitmap bridge connect the two. No CPU pixel array, server round trip, JPEG encoding or frame queue is involved in stereo capture. Texture upload happens only for a new bitmap. Stereo capture preserves encoded sRGB values; UI bitmaps explicitly use straight alpha, preventing a second alpha multiplication in the compositor. This bridge still has completion latency; it is not zero-copy.
 
@@ -88,10 +88,8 @@ flowchart LR
   CAL --> IK[Clamped two-bone arm IK]
   IK --> RIG[Mixamo wrist and finger bones]
   RIG --> RESTORE[Restore animation pose after rendering]
-  DOM[Original DOM menus] --> OVERLAY{DOM overlay available?}
-  OVERLAY -->|yes| NATIVE[Browser DOM overlay]
-  OVERLAY -->|no| SNAP[Mutation-driven DOM snapshot]
-  HUD[PlayCanvas UI layer] --> PANEL[Transparent world-space panel]
+  DOM[Original DOM menus] --> SNAP[Mutation-driven DOM snapshot]
+  HUD[PlayCanvas UI layer] --> PANEL[Transparent view-following gameplay HUD]
   SNAP --> PANEL
   RAY[Controller select or hand pinch] --> HIT[Panel ray hit]
   HIT --> CLICK[Original DOM click or canvas input]
@@ -99,7 +97,7 @@ flowchart LR
 
 Arm IK uses shoulder/elbow/wrist bones, not changes to the game's physics or inventory. Finger joints map when a recognized chain exists. Missing tracking restores the original animation rather than freezing a stale pose. Nonhumanoid rigs remain playable without synthetic bone assumptions. Remote multiplayer hand replication is not implemented; it needs an upstream protocol contract. The [WebXR hand input API](https://immersive-web.github.io/webxr-hand-input/) supplies optional joints; controller grips are the fallback.
 
-Original HTML menus use [DOM overlays](https://immersive-web.github.io/dom-overlays/) when supported. Otherwise a transparent world panel captures DOM changes at up to 4 fps. PlayCanvas's UI layer has its own 1920 × 1080 transparent target at up to 8 fps. A ray hit focuses and clicks the original element, or forwards legacy HUD mouse input. The left secondary button, typically Y, reanchors the panel. Complex cross-origin iframe content, browser-controlled keyboards, tainted canvases and unsupported CSS remain browser constraints.
+Original HTML menus use a transparent view-following HUD that captures DOM changes at up to 4 fps. Gameplay deliberately uses this consistent hand-interaction path instead of browser-dependent DOM overlays. PlayCanvas's UI layer has its own 1920 × 1080 transparent target at up to 8 fps. Hand rays focus, press, drag and release the original element, or forward engine HUD pointer/mouse input. The HUD follows the full head pose; the editor retains its anchored panel. A dedicated HUD joystick drives the existing player input source. Complex cross-origin iframe content, browser-controlled keyboards, tainted canvases and unsupported CSS remain browser constraints.
 
 ## Optional modules
 
@@ -118,3 +116,7 @@ Original HTML menus use [DOM overlays](https://immersive-web.github.io/dom-overl
 | Rig discovery, IK and pose restoration | `src/client/hands.ts`, `src/client/ik.ts` |
 | DOM/HUD capture and ray interaction | `src/client/world-ui.ts`, `src/client/ui-hit.ts` |
 | Isolated optional feature hooks | `src/client/features.ts` |
+
+### Quest feedback revision
+
+Gameplay HUD/menu textures now follow the full head pose every frame. The original DOM is captured consistently into this view-relative HUD instead of relying on browser DOM-overlay support. Hand rays select, hold and drag controls; a dedicated HUD joystick drives the existing Arcade input source. The editor alone retains a world-anchored panel. Capture generation guards and bounded stall recovery protect XR re-entry; partial GPU capture failures close both allocations before reporting failure.
