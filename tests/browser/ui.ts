@@ -6,6 +6,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('canvas'), run = docume
 if (!canvas || !run || !output || !action) throw Error('Fixture missing');
 let clicks = 0; action.onclick = () => { clicks++; action.textContent = 'Clicked ' + clicks; };
 run.onclick = async () => {
+  clicks = 0; action.textContent = 'Interact';
   try {
     const gl = canvas.getContext('webgl2'); if (!gl) throw Error('WebGL2 unavailable');
     const stereo = createStereoProgram(gl); gl.deleteProgram(stereo);
@@ -17,3 +18,7 @@ run.onclick = async () => {
     output.textContent = JSON.stringify({ stereoShader: 'compiled', panelShader: 'compiled', rayHit: hit, buttonClicks: clicks, verdict: hit && clicks === 1 ? 'pass' : 'fail' });
   } catch (error) { output.textContent = error instanceof Error ? error.message : String(error); }
 };
+
+import { verifyStereo } from './stereo.js';
+const stereoRun = document.querySelector<HTMLButtonElement>('#stereo-run'); if (!stereoRun) throw Error('Stereo button missing');
+stereoRun.onclick = () => { stereoRun.disabled = true; run.disabled = true; output.textContent = 'Checking actual WebGPU stereo capture…'; void verifyStereo().then(result => { output.textContent = JSON.stringify(result); }).catch(error => { output.textContent = String(error); }).finally(() => { stereoRun.disabled = false; run.disabled = false; }); };
