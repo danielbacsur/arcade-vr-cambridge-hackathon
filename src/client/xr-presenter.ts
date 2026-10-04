@@ -4,6 +4,7 @@ import { dispatchFeatures, type FeatureContext } from './features.js';
 import { WorldUI } from './world-ui.js';
 import { AutomaticEntry } from './xr-entry.js';
 import type { EngineController } from './engine.js';
+import { HandJoystick } from './hand-locomotion.js';
 const pose = (transform: XRRigidTransform): Pose => ({ position: { x: transform.position.x, y: transform.position.y, z: transform.position.z }, orientation: { x: transform.orientation.x, y: transform.orientation.y, z: transform.orientation.z, w: transform.orientation.w } });
 export class XRPresenter {
   private session?: XRSession;
@@ -20,6 +21,7 @@ export class XRPresenter {
   private ui?: WorldUI;
   private id = 0;
   private menuPressed = false;
+  private readonly handJoystick = new HandJoystick();
   private featureContext?: FeatureContext;
   private renderScale = 1;
   private vignette = 0;
@@ -63,7 +65,7 @@ export class XRPresenter {
   }
   private frame = (time: number, frame: XRFrame): void => {
     const session = this.session, space = this.space, gl = this.gl, layer = this.layer; if (!session || !space || !gl || !layer) return;
-    session.requestAnimationFrame(this.frame); const viewer = frame.getViewerPose(space); if (!viewer || viewer.views.length !== 2) return;
+    session.requestAnimationFrame(this.frame); const viewer = frame.getViewerPose(space); if (!viewer || viewer.views.length !== 2) { this.handJoystick.release(); this.engine.release(); return; }
     const views = viewer.views.map(view => { const viewport = layer.getViewport(view); if (!viewport) throw Error('Missing eye viewport'); return { ...pose(view.transform), eye: view.eye as 'left' | 'right', projection: Array.from(view.projectionMatrix), viewport: { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height } }; });
     const hands: HandPose[] = []; let menuPressed = false; let move = { x: 0, z: 0 }; const keys: string[] = [];
     for (const source of session.inputSources) {
@@ -79,7 +81,9 @@ export class XRPresenter {
       if (source.handedness === 'left' && source.gamepad?.buttons[4]?.pressed) keys.push('ShiftLeft');
       if (source.handedness === 'left' && source.gamepad?.buttons[5]?.pressed) menuPressed = true;
     }
-    const packet: XRPacket = { frameId: ++this.id, time, center: pose(viewer.transform), views, hands, move, keys };
+    const center = pose(viewer.transform), handMove = this.handJoystick.update(hands.find(hand => hand.side === 'left'), center);
+    if (handMove.x || handMove.z) move = handMove;
+    const packet: XRPacket = { frameId: ++this.id, time, center, views, hands, move, keys };
     if (this.featureContext) dispatchFeatures({ type: 'frame', context: this.featureContext, packet, frame });
     const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale);
     if (menuPressed && !this.menuPressed) this.ui?.anchor(packet.center); this.menuPressed = menuPressed;
@@ -99,7 +103,7 @@ export class XRPresenter {
       const viewport = view.viewport; gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height); gl.uniform1f(gl.getUniformLocation(this.program, 'vignette'), this.vignette); gl.uniform1f(gl.getUniformLocation(this.program, 'eye'), view.eye === 'left' ? 0 : 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); const xrView = viewer.views.find(eye => eye.eye === view.eye); if (xrView) this.ui?.draw(xrView.projectionMatrix, xrView.transform.inverse.matrix, packet.center); if (this.featureContext) dispatchFeatures({ type: 'eye', context: this.featureContext, eye: view }); }
   };
 
-  private end = (): void => { if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
+  private end = (): void => { this.handJoystick.release(); if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
 }
 
 export function createStereoProgram(gl: WebGL2RenderingContext): WebGLProgram {
