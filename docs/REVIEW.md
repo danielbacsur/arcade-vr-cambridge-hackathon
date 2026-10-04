@@ -12,9 +12,11 @@ All five previously isolated feature branches are now merged into main, with a s
 
 ## Hand-only movement and UI
 
-The gameplay HUD stays fixed to the view, including pitch and roll. Point a tracked hand at the lower-left joystick, pinch thumb and index finger, and drag while holding the pinch. Release or loss of the hand ray stops movement. A cyan pointer shows where the hand ray hits. Point and pinch buttons to activate them; held drags also forward native pointer, mouse and touch events.
+The gameplay HUD follows the view, including pitch and roll. **Right-hand thumb/index pinch** selects buttons and holds/drag controls; a small cyan pointer shows its target. The added movement joystick and its label have been removed.
 
-Alternatively, pinch the **left thumb and middle fingertip** together to grab a floating joystick at the current hand position. Move that hand forward/backward or left/right to move the player; release to stop. A 2 cm dead zone absorbs small tremors; 10 cm displacement reaches full speed. Missing or invalid tracking immediately stops and resets the anchor. Head translation is subtracted to reduce body sway. Axes are calibrated to the heading when the pinch begins; movement follows the player's current viewing direction as with the controller stick. Index pinch remains available for UI selection and the HUD joystick, and suppresses the middle-finger locomotion gesture to avoid overlap.
+For movement, pinch the **left thumb and index fingertip** together. This grabs a floating anchor at the current hand position. Move that hand forward/backward or left/right to steer; movement follows the viewing direction. Release to stop immediately. A 2 cm dead zone absorbs tremor and 10 cm displacement reaches full speed. A short, frame-rate-independent smoothing filter steadies active steering; returning to neutral, releasing or losing tracking bypasses the filter and stops immediately. Pinch hysteresis prevents flickering when fingertips separate slightly. Reacquired tracking starts from a new neutral anchor. Head translation is subtracted to reduce body sway. The right hand cannot activate locomotion.
+
+This uses native WebXR hand poses with the existing Arcade player controller; it is application-defined locomotion rather than an automatic browser walking feature. No permanent movement overlay is needed. Controller movement still works when a controller is available.
 
 ## Laptop jury preview
 

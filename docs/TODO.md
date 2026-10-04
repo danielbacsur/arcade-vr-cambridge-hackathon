@@ -60,3 +60,10 @@ Nothing pushed or deployed. See the updated [integrated feature guide](REVIEW.md
 - [x] Pass strict types, lint, build and 72 tests; browser probes pass for rotated-head UI selection, held movement, lost-ray stop and stereo/color/restoration.
 
 The user reports more stable world tracking on Quest. The reported restart/black screen has not been reproduced on hardware; recovery fixes cover identified software paths.
+
+## UI-less locomotion follow-up
+
+- [x] Remove the added HUD movement joystick and permanent instruction label.
+- [x] Use familiar left thumb/index pinch to steer from a floating hand anchor; reserve right pinch for menus.
+- [x] Add time-based steering smoothing, pinch hysteresis, immediate neutral/release stops and hand-role isolation tests.
+- [x] Pass strict types, lint, build and 72 tests; browser verifies the old joystick area is transparent and head-following menu selection still works.
