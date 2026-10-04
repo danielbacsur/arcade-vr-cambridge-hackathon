@@ -25,3 +25,5 @@ The editor source image remains monoscopic on a stereoscopic spatial panel. Nati
 Quest hardware validation is still pending. E/C actions are game conventions rather than a universal API; visible hands are local rendering without colliders or multiplayer replication. DOM capture can omit unsupported cross-origin content or CSS. Browser consent still uses the original game's trusted Start interaction.
 
 Strict types, lint, production build and 63 tests pass after integration. A real browser GPU fixture verifies two desktop eye cameras with HUD in both eyes, native simulated-pose stereo capture, correct sRGB/alpha blending and renderer restoration. Actual headset comfort and performance are separate checks.
+
+The laptop stereo pane also uses a lightweight SVG headset silhouette: mirrored irregular eye openings with soft black edges and a nose-side cutout. It is a presentation overlay, does not intercept drag controls, and is hidden in immersive mode. It does not simulate lens optics or alter Quest projections.
