@@ -11,6 +11,7 @@ const scriptJSON = (value: unknown) => JSON.stringify(value).replaceAll('<', '\\
 export function injectPage(html: string, routing: Routing, path: string): string {
   const boot = `<script>window.ARCADE_PROXY=${scriptJSON(routing.boot)};</script><script src="/__arcade_vr/navigation.js"></script>`;
   html = html.replace(/<head[^>]*>/i, match => match + boot);
+  if (routing.role === 'site') html = html.replace(/<body[^>]*>/i, match => match + '<a href="https://github.com/danielbacsur/arcade-vr-cambridge-hackathon" target="_blank" rel="noopener noreferrer" style="position:absolute;top:16px;right:16px;z-index:2147483647;max-width:calc(100% - 32px);padding:10px 14px;background:rgba(0,0,0,.85);color:white;font:12px/1.5 monospace;overflow-wrap:anywhere;text-decoration:underline;border:1px solid #555;border-radius:6px">github.com/danielbacsur/arcade-vr-cambridge-hackathon ↗</a>');
   if (routing.role === 'runtime' && isGameRoute(path)) html = html.replace(/<\/body>/i, '<script src="/__arcade_vr/runtime.js"></script></body>');
   return html;
 }
