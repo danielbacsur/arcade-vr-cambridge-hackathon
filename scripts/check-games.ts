@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
+import { coverageSummary, type CoverageResult } from './coverage-result.js';
 import { request } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { isRecord } from '../src/shared/protocol.js';
 import { resolveRouting, UPSTREAMS } from '../src/server/routing.js';
 const port = Number(process.env.PORT || 8765), api = `https://${UPSTREAMS.api}`, routing = resolveRouting(`runtime.joinarcade.localhost:${port}`);
 if (!routing) throw Error('Missing routing');
-interface Result { kind: string; name: string; upstream: number; proxy: number; bytes?: number; identical?: boolean; detail?: string }
-const results: Result[] = [];
+const results: CoverageResult[] = [];
 async function local(url: string, method = 'GET', range?: string): Promise<Response> {
   const parsed = new URL(url);
   return new Promise((resolve, reject) => {
@@ -42,11 +42,13 @@ await pool(catalog, async game => {
   }
 });
 for (const path of ['/libs/glslang.js', '/libs/glslang.wasm', '/libs/twgsl.js', '/libs/twgsl.wasm', ...['px', 'nx', 'py', 'ny', 'pz', 'nz'].map(face => '/textures/skyboxes/day/' + face + '.png')]) {
-  const original = await fetch(`https://${UPSTREAMS.editor}${path}`), proxy = await local(`http://runtime.joinarcade.localhost:${port}${path}`);
+  try {
+  const original = await fetch(`https://${UPSTREAMS.editor}${path}`, { signal: AbortSignal.timeout(30000) }), proxy = await local(`http://runtime.joinarcade.localhost:${port}${path}`);
   results.push({ kind: 'engine dependency', name: path, upstream: original.status, proxy: proxy.status, identical: Buffer.from(await original.arrayBuffer()).equals(Buffer.from(await proxy.arrayBuffer())) });
+  } catch (error) { results.push({ kind: 'engine dependency', name: path, upstream: 0, proxy: 0, detail: error instanceof Error ? error.message : 'network failure' }); }
 }
-await mkdir('work', { recursive: true }); const report = { time: new Date().toISOString(), games: catalog.length, results, boundary: 'HTTP/bootstrap and sampled bytes only; not all in-game assets or gameplay. No headset present.' };
+await mkdir('work', { recursive: true }); const report = { time: new Date().toISOString(), games: catalog.length, results, summary: coverageSummary(results), boundary: 'HTTP/bootstrap and sampled bytes only; not all in-game assets or gameplay. No headset present.' };
 await writeFile('work/compatibility.json', JSON.stringify(report, null, 2));
-const failures = results.filter(row => row.upstream !== row.proxy || row.identical === false || row.detail === 'adapter missing');
-console.info(`${results.length} checks; ${failures.length} proxy discrepancies. Report: work/compatibility.json`);
-if (failures.length) process.exitCode = 1;
+const summary = coverageSummary(results);
+console.info(`${summary.checks} checks; ${summary.discrepancies} proxy discrepancies; ${summary.inconclusive} inconclusive; ${summary.upstreamFailures} upstream failures. Report: work/compatibility.json`);
+if (!summary.passed) process.exitCode = 1;
