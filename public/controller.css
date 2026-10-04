@@ -8,7 +8,9 @@ body[data-mode=vr] .views{grid-template-columns:1fr;width:min(100%,calc(100dvh *
 output{display:block;font:12px/1.6 ui-monospace,monospace;color:var(--muted);white-space:pre-wrap;margin:24px 0}details{border-top:1px solid var(--line);padding-top:20px;font-size:13px}summary{cursor:pointer;color:var(--muted);min-height:36px}details button{margin:6px 6px 6px 0}pre{white-space:pre-wrap;overflow:auto;max-height:360px;color:#ccc;font:12px/1.5 ui-monospace,monospace;scrollbar-color:#555 #151515}body[data-mode=vr] .tools{display:none}
 @media(max-width:700px){.views{grid-template-columns:1fr;width:min(100%,calc((100dvh - 8px) * 8 / 9))}.tools{padding:24px 16px 40px}.control-board{grid-template-columns:176px minmax(0,1fr);gap:16px}.status-row{flex-direction:column;gap:6px}}@media(max-width:420px){.control-board{grid-template-columns:1fr}.control-board>div:first-child{display:flex;align-items:center;gap:16px}.dpad{flex:1}.render-options label{min-width:140px}}
 
-.live-view{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#000;min-width:0}.live-view>#arena{position:absolute;left:0;top:0;width:1920px;height:1080px;max-width:none;aspect-ratio:auto;transform-origin:top left}
+.live-view{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#000;min-width:0}.live-view>#arena{position:absolute;left:0;top:0;width:1280px;height:720px;max-width:none;aspect-ratio:auto;transform-origin:top left}
 
 /* Desktop headset silhouette: mirrored irregular apertures, soft edges, no input interception. */
 .head-view{position:relative;width:100%;aspect-ratio:16/9;min-width:0;overflow:hidden;background:#000}.headset-mask{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block}
+
+body[data-mode=vr] .views,body[data-mode=vr] .live-view{width:100%;height:100dvh;aspect-ratio:auto}body[data-mode=vr] .live-view>#arena{width:100%;height:100%;transform:none!important}

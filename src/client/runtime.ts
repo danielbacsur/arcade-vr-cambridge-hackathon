@@ -11,7 +11,7 @@ let owner: { source: Window; origin: string } | undefined;
 function send(data: Record<string, unknown>, transfer: Transferable[] = []): void { owner?.source.postMessage({ channel: CHANNEL, direction: 'stream', session, ...data }, owner.origin, transfer); }
 engine.onState = state => send({ type: 'state', state });
 engine.onFrame = (bitmap, id) => { if (owner) send({ type: 'bitmap', bitmap, width: bitmap.width, height: bitmap.height, id }, [bitmap]); else bitmap.close(); };
-function settings(value: unknown): RenderSettings { const v = isRecord(value) ? value : {}; return { debug: v.debug !== false, width: Math.max(320, Math.min(1920, finite(v.width, 960))), height: Math.max(180, Math.min(1080, finite(v.height, 540))), fps: Math.max(12, Math.min(90, finite(v.fps, 30))), tone: v.tone === 'aces' ? 'aces' : 'neutral', exposure: Math.max(.1, Math.min(2, finite(v.exposure, 1))) }; }
+function settings(value: unknown): RenderSettings { const v = isRecord(value) ? value : {}; return { debug: v.debug !== false, width: Math.max(320, Math.min(1280, finite(v.width, 960))), height: Math.max(180, Math.min(720, finite(v.height, 540))), fps: Math.max(12, Math.min(90, finite(v.fps, 30))), tone: v.tone === 'aces' ? 'aces' : 'neutral', exposure: Math.max(.1, Math.min(2, finite(v.exposure, 1))) }; }
 async function execute(request: RequestMessage): Promise<unknown> {
   const payload = isRecord(request.payload) ? request.payload : {};
   switch (request.op) {

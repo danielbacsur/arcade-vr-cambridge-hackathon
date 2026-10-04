@@ -2,7 +2,7 @@ export const CHANNEL = 'arcade-vr-v2';
 export interface Vector3 { x: number; y: number; z: number }
 export interface Quaternion { x: number; y: number; z: number; w: number }
 export interface Pose { position: Vector3; orientation: Quaternion }
-export interface EyePose extends Pose { eye: 'left' | 'right'; projection: number[]; viewport: { x: number; y: number; width: number; height: number } }
+export interface EyePose extends Pose { eye: 'left' | 'right'; projection: number[]; captureProjection?: number[]; viewport: { x: number; y: number; width: number; height: number } }
 export interface HandPose { side: 'left' | 'right'; grip?: Pose; joints?: Partial<Record<XRHandJoint, Pose>>; pinch: number; trigger: number }
 export interface XRPacket { frameId: number; time: number; center: Pose; views: EyePose[]; hands: HandPose[]; move: { x: number; z: number }; keys: string[] }
 export interface RenderSettings { debug: boolean; width: number; height: number; fps: number; tone: 'neutral' | 'aces'; exposure: number }

@@ -1,7 +1,7 @@
 import * as pc from 'playcanvas';
 import { WorldUI } from '../../src/client/world-ui.js';
 import { createStereoProgram } from '../../src/client/xr-presenter.js';
-import { rotate } from '../../src/client/tracking.js';
+import { guardProjection, rotate } from '../../src/client/tracking.js';
 import type { Pose } from '../../src/shared/protocol.js';
 window.pc = pc;
 const canvas = document.querySelector<HTMLCanvasElement>('canvas'), run = document.querySelector<HTMLButtonElement>('#run'), output = document.querySelector<HTMLElement>('output'), action = document.querySelector<HTMLButtonElement>('#action');
@@ -11,7 +11,11 @@ run.onclick = async () => {
   clicks = 0; action.textContent = 'Interact';
   try {
     const gl = canvas.getContext('webgl2'); if (!gl) throw Error('WebGL2 unavailable');
-    const stereo = createStereoProgram(gl); gl.deleteProgram(stereo);
+    const stereo = createStereoProgram(gl);
+    const geometry = gl.createBuffer(), image = gl.createTexture(), source = document.createElement('canvas'); source.width = 128; source.height = 64; const paint = source.getContext('2d'); if (!paint) throw Error('Guard probe unavailable'); paint.fillStyle = '#00ff00'; paint.fillRect(0,0,128,64);
+    gl.useProgram(stereo); gl.bindBuffer(gl.ARRAY_BUFFER,geometry); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW); const attribute = gl.getAttribLocation(stereo,'position'); gl.enableVertexAttribArray(attribute); gl.vertexAttribPointer(attribute,2,gl.FLOAT,false,0,0); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,image); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,source);
+    const lens = new pc.Mat4().setPerspective(90,1,.05,100); gl.uniformMatrix4fv(gl.getUniformLocation(stereo,'inverseProjection'),false,lens.clone().invert().data); gl.uniformMatrix4fv(gl.getUniformLocation(stereo,'oldProjection'),false,new Float32Array(guardProjection(Array.from(lens.data)))); const turn = 20 * Math.PI / 360; gl.uniform4f(gl.getUniformLocation(stereo,'rotation'),0,Math.sin(turn),0,Math.cos(turn)); gl.viewport(0,0,canvas.width,canvas.height); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    const guardPixel = new Uint8Array(4), coveredEdges = [1,canvas.width - 2].every(x => { gl.readPixels(x,canvas.height / 2,1,1,gl.RGBA,gl.UNSIGNED_BYTE,guardPixel); return guardPixel[1]! > 240; }); if (!coveredEdges) throw Error('Head turn exposes capture border'); gl.deleteTexture(image); gl.deleteBuffer(geometry); gl.deleteProgram(stereo);
     const ui = new WorldUI(gl, message => { output.textContent = message; }, true, () => {}, { width: 1920, height: 1080 }, { followHead: true, handPointer: true });
     const orientation = { x: 0, y: 0, z: 0, w: 1 }, head = { position: { x: 0, y: 1.6, z: 0 }, orientation }; ui.anchor(head); ui.update(1000);
     const projection = new pc.Mat4().setPerspective(80, 16 / 9, .05, 100), view = new pc.Mat4().setTranslate(-head.position.x, -head.position.y, -head.position.z);
@@ -23,7 +27,7 @@ run.onclick = async () => {
     const turned = new pc.Quat().setFromEulerAngles(25, 60, 15), movedHead = { position: { x: 2, y: 1.7, z: 3 }, orientation: { x: turned.x, y: turned.y, z: turned.z, w: turned.w } }; ui.anchor(movedHead);
     const ray = rayAt(960, 540, movedHead), hit = ui.pointer(ray, 'down', 201); ui.pointer(ray, 'up', 201);
     ui.releasePointers(); ui.destroy();
-    output.textContent = JSON.stringify({ stereoShader: 'compiled', panelShader: 'compiled', headLockedRayHit: hit, buttonClicks: clicks, clearAtOldStick, verdict: hit && clicks === 1 && clearAtOldStick ? 'pass' : 'fail' });
+    output.textContent = JSON.stringify({ coveredEdges, stereoShader: 'compiled', panelShader: 'compiled', headLockedRayHit: hit, buttonClicks: clicks, clearAtOldStick, verdict: hit && clicks === 1 && clearAtOldStick ? 'pass' : 'fail' });
   } catch (error) { output.textContent = error instanceof Error ? error.message : String(error); }
 };
 

@@ -26,3 +26,10 @@ export class TrackingSpace {
   turn(degrees: number): void { const half = degrees * Math.PI / 360; this.heading = multiply({ x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) }, this.heading); }
   reset(): void { this.origin = undefined; }
 }
+
+/** Capture extra angular coverage without changing the headset's native lens projection. */
+export function guardProjection(projection: readonly number[], margin = 1.35): number[] {
+  const result = [...projection];
+  for (const index of [0, 4, 8, 12, 1, 5, 9, 13]) result[index] = (result[index] || 0) / margin;
+  return result;
+}
