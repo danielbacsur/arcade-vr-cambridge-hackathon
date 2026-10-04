@@ -20,7 +20,13 @@ export async function verifyStereo(): Promise<Record<string, unknown>> {
     const screen = new pc.Entity('screen'); screen.addComponent('screen', { screenSpace: true, resolution: new pc.Vec2(1920, 1080), referenceResolution: new pc.Vec2(1920, 1080) }); application.root.addChild(screen);
     const hud = new pc.Entity('hud-button'); hud.addComponent('element', { type: 'image', anchor: new pc.Vec4(.45, .45, .55, .55), pivot: new pc.Vec2(.5, .5), color: new pc.Color(1, 1, 0), opacity: .5 }); screen.addChild(hud);
     window.pc = pc; window.pcApp = application as EngineApplication; window.gameManager = { getApp: () => application as EngineApplication, getViewCamera: () => camera, getPlayerControlService: () => ({ controlledEntity: actor, getPlayRigController: () => ({ getInputManager: () => ({ addSource: source => { sources.add(source); }, removeSource: source => { sources.delete(source); } }) }) }) };
-    application.start(); engine.onFrame = (bitmap, id) => { bitmap.close(); engine.acknowledge(id); }; engine.connect({ debug: true, width: 960, height: 540, fps: 30, tone: 'neutral', exposure: 1 });
+    application.start();
+    const desktop = await new Promise<{ hudBothEyes: boolean; eyeCameras: number }>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(Error('Desktop stereo preview timed out')), 20000);
+      engine.onFrame = (bitmap, id) => { const probe = new OffscreenCanvas(960, 540), ctx = probe.getContext('2d', { willReadFrequently: true }); ctx?.drawImage(bitmap, 0, 0); const green = [240, 720].map(x => ctx?.getImageData(x, 270, 1, 1).data[1] || 0); bitmap.close(); engine.acknowledge(id); clearTimeout(timeout); resolve({ hudBothEyes: green.every(value => value > 100 && value < 160), eyeCameras: application.root.findComponents('camera').filter(component => component.entity.name.startsWith('ArcadeVRPreview') || component.entity.name === 'ArcadeVRPlayerCamera').length }); };
+      engine.connect({ debug: true, width: 960, height: 540, fps: 30, tone: 'neutral', exposure: 1 });
+    });
+    engine.onFrame = (bitmap, id) => { bitmap.close(); engine.acknowledge(id); };
     const projection = Array.from(new pc.Mat4().setPerspective(90, 1, .05, 1000).data), orientation = { x: 0, y: 0, z: 0, w: 1 }, center = { position: { x: 0, y: 1.7, z: 0 }, orientation };
     const packet: XRPacket = { frameId: 1, time: performance.now(), center, views: (['left', 'right'] as const).map((eye, index) => ({ eye, position: { x: index ? .032 : -.032, y: 1.7, z: 0 }, orientation, projection, viewport: { x: index * 320, y: 0, width: 320, height: 320 } })), hands: [], keys: [], move: { x: 0, z: 0 } };
     const pixels = document.createElement('canvas'); pixels.width = 640; pixels.height = 320; const context = pixels.getContext('2d', { willReadFrequently: true }); if (!context) throw Error('Probe canvas unavailable');
@@ -37,6 +43,6 @@ export async function verifyStereo(): Promise<Record<string, unknown>> {
     const srgb = Math.abs((color[0] || 0) - 128) < 8 && (color[1] || 0) < 8 && (color[2] || 0) < 8;
     const disparity = (sum[0] || 0) / Math.max(1, count[0] || 0) - (sum[1] || 0) / Math.max(1, count[1] || 0);
     engine.endXR(); engine.stop(); const restored = (application as EngineApplication).requestAnimationFrame === nativeAnimation && sources.size === 0 && camera.camera?.enabled === true && device.width === 960 && device.height === 540;
-    return { ...frame, coloredPixels: count, centerRGBA: color, srgb, disparity, hudAlpha, hudCornerAlpha, blendedHUD: Array.from(blended), restored, verdict: frame.width === 640 && frame.height === 320 && frame.metadata && srgb && (count[0] || 0) > 100 && (count[1] || 0) > 100 && disparity > 5 && disparity < 7 && hudAlpha > 100 && hudAlpha < 160 && (blended[0] || 0) > 100 && (blended[0] || 0) < 160 && hudCornerAlpha < 10 && restored ? 'pass' : 'fail' };
+    return { ...frame, desktop, coloredPixels: count, centerRGBA: color, srgb, disparity, hudAlpha, hudCornerAlpha, blendedHUD: Array.from(blended), restored, verdict: desktop.hudBothEyes && desktop.eyeCameras === 2 && frame.width === 640 && frame.height === 320 && frame.metadata && srgb && (count[0] || 0) > 100 && (count[1] || 0) > 100 && disparity > 5 && disparity < 7 && hudAlpha > 100 && hudAlpha < 160 && (blended[0] || 0) > 100 && (blended[0] || 0) < 160 && hudCornerAlpha < 10 && restored ? 'pass' : 'fail' };
   } finally { panel?.destroy(); engine.stop(); application.destroy(); material?.destroy(); canvas.remove(); window.pcApp = undefined; window.gameManager = undefined; }
 }
