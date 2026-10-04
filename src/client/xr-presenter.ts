@@ -61,7 +61,7 @@ export class XRPresenter {
       gl.bindTexture(gl.TEXTURE_2D, this.texture || null); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       this.engine.onXRFrame = (bitmap, packet) => { if (this.session !== session || this.failing) { bitmap.close(); return; } this.watchdog.reset(performance.now()); this.bitmap?.close(); this.bitmap = bitmap; this.captured = packet; this.dirty = true; };
       document.documentElement.classList.add('arcade-xr-active'); this.engine.xrUI = 'head-locked-hud';
-      this.ui = new WorldUI(gl, message => this.engine.reportError(message), true, (x, y, phase) => phase ? this.engine.pointerUI(x, y, phase) : this.engine.clickUI(x, y), { width: 1920, height: 1080 }, { followHead: true, handControls: true }); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
+      this.ui = new WorldUI(gl, message => this.engine.reportError(message), true, (x, y, phase) => phase ? this.engine.pointerUI(x, y, phase) : this.engine.clickUI(x, y), { width: 1920, height: 1080 }, { followHead: true, handPointer: true }); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
       const canvasElement = this.engine.canvas(); if (canvasElement) canvasElement.dataset.arcadeVrEngine = 'true';
       const selection = (event: XRInputSourceEvent, pressed: boolean) => { if (!this.space || !this.ui || event.inputSource.hand) return; const head = event.frame.getViewerPose(this.space), ray = event.frame.getPose(event.inputSource.targetRaySpace, this.space); if (head) this.ui.anchor(pose(head.transform)); this.updatePointer(event.inputSource, ray ? pose(ray.transform) : undefined, pressed); };
       session.addEventListener('selectstart', event => selection(event, true)); session.addEventListener('selectend', event => selection(event, false));
@@ -90,18 +90,17 @@ export class XRPresenter {
       }
       hands.push(hand); const axes = source.gamepad?.axes;
       seen.add(source); const targetRay = frame.getPose(source.targetRaySpace, space), ray = targetRay ? pose(targetRay.transform) : undefined;
-      if (ray && (source.handedness === 'right' || !hands.some(item => item.side === 'right'))) this.ui?.hover(ray);
-      if (source.hand) { const thumb = hand.joints?.['thumb-tip']?.position, finger = hand.joints?.['index-finger-tip']?.position; const pressed = !!thumb && !!finger && Math.hypot(thumb.x - finger.x, thumb.y - finger.y, thumb.z - finger.z) < (this.pointers.get(source)?.pressed ? .04 : .025); this.updatePointer(source, ray, pressed); }
-      else if (this.pointers.get(source)?.pressed) this.updatePointer(source, ray, true);
+      if (ray && source.handedness === 'right') this.ui?.hover(ray);
+      if (source.hand && source.handedness === 'right') { const thumb = hand.joints?.['thumb-tip']?.position, finger = hand.joints?.['index-finger-tip']?.position; const pressed = !!thumb && !!finger && Math.hypot(thumb.x - finger.x, thumb.y - finger.y, thumb.z - finger.z) < (this.pointers.get(source)?.pressed ? .04 : .025); this.updatePointer(source, ray, pressed); }
+      else if (!source.hand && this.pointers.get(source)?.pressed) this.updatePointer(source, ray, true);
       if (source.handedness === 'left' && axes) move = { x: Math.abs(axes[2] || axes[0] || 0) > .15 ? axes[2] || axes[0] || 0 : 0, z: Math.abs(axes[3] || axes[1] || 0) > .15 ? axes[3] || axes[1] || 0 : 0 };
       if (source.handedness === 'right' && source.gamepad?.buttons[4]?.pressed) keys.push('Space');
       if (source.handedness === 'left' && source.gamepad?.buttons[4]?.pressed) keys.push('ShiftLeft');
       if (source.handedness === 'left' && source.gamepad?.buttons[5]?.pressed) menuPressed = true;
     }
     for (const source of this.pointers.keys()) if (!seen.has(source)) { const pointer = this.pointers.get(source); if (pointer) this.ui?.pointer(undefined, 'up', pointer.id); this.pointers.delete(source); }
-    const handMove = this.handJoystick.update(hands.find(hand => hand.side === 'left'), center), hudMove = this.ui?.movement();
+    const handMove = this.handJoystick.update(hands.find(hand => hand.side === 'left'), center, time);
     if (handMove.x || handMove.z) move = handMove;
-    if (hudMove && (hudMove.x || hudMove.z)) move = hudMove;
     const packet: XRPacket = { frameId: ++this.id, time, center, views, hands, move, keys };
     if (this.featureContext) dispatchFeatures({ type: 'frame', context: this.featureContext, packet, frame });
     const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale, 1600, 1600);
