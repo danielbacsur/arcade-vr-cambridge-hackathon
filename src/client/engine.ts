@@ -3,6 +3,7 @@ import { finite, type RenderSettings, type RuntimeState, type Vector3, type XRPa
 import { RigHands } from './hands.js';
 import { TrackingSpace, rotate } from './tracking.js';
 import { PreviewUI } from './preview-ui.js';
+import { capturePair } from './capture-pair.js';
 import type { EngineApplication, InputManager, InputSource } from './globals.js';
 const rotateForward = (q: import('../shared/protocol.js').Quaternion) => rotate(q, { x: 0, y: 0, z: -1 });
 const vector = (v: PC.Vec3): Vector3 => ({ x: v.x, y: v.y, z: v.z });
@@ -48,6 +49,7 @@ export class EngineController {
   private lastInput = 0;
   private lastState = 0;
   private busy = false;
+  private generation = 0;
   private waitingAck = false;
   private frameId = 0;
   private error: string | null = null;
@@ -81,6 +83,7 @@ export class EngineController {
     const a = this.application, pc = window.pc, cam = this.headCamera?.camera;
     if (!a || !pc || !cam) return;
     if (!this.xrPacket) {
+      cam.layers = cam.layers.filter(layer => layer !== pc.LAYERID_UI);
       this.savedXRSettings = { ...this.settings }; this.originalAnimation = a.requestAnimationFrame;
       if (a.frameRequestId) cancelAnimationFrame(a.frameRequestId); a.frameRequestId = undefined; a.requestAnimationFrame = () => {};
       this.waitingAck = false; this.lastUIFrame = 0; this.tracking = new TrackingSpace(this.eyeHeight, this.standingHeight); this.tracking.calibrate(packet.center, this.yaw);
@@ -92,7 +95,7 @@ export class EngineController {
     this.xrPacket = packet; this.lastInput = performance.now(); this.movement = packet.move; this.setKeys(new Set(packet.keys));
     if (!this.busy && (this.settings.width !== size.width * 2 || this.settings.height !== size.height || !this.target)) {
       this.target?.destroy(); this.texture?.destroy(); this.captureContext?.unconfigure();
-      this.settings = { ...this.settings, width: size.width * 2, height: size.height, fps: 90 };
+      this.settings = { ...this.settings, width: size.width * 2, height: size.height, fps: 60 };
       const device = a.graphicsDevice.wgpu; if (!device) { this.reportError('WebGPU engine unavailable'); return; }
       this.texture = new pc.Texture(a.graphicsDevice, { name: 'ArcadeVRStereo', width: this.settings.width, height: size.height, format: pc.PIXELFORMAT_RGBA8, mipmaps: false });
       this.target = new pc.RenderTarget({ colorBuffer: this.texture, depth: true, samples: 1 });
@@ -132,7 +135,7 @@ export class EngineController {
     this.originalSize = { width: gd.width, height: gd.height, ratio: gd.maxPixelRatio, mode: a.resolutionMode };
     gd.maxPixelRatio = 1; a.setCanvasResolution(pc.RESOLUTION_FIXED, settings.width, settings.height);
     const cam = this.headCamera = new pc.Entity('ArcadeVRPlayerCamera'); a.root.addChild(cam);
-    cam.addComponent('camera', { clearColor: main.clearColor, nearClip: .1, farClip: main.farClip || 1000, fov: 80, priority: 100, layers: [...main.layers].filter(layer => layer !== pc.LAYERID_UI), clearColorBuffer: true });
+    cam.addComponent('camera', { clearColor: main.clearColor, nearClip: .1, farClip: main.farClip || 1000, fov: 80, priority: 100, layers: settings.debug ? [...main.layers].filter(layer => layer !== pc.LAYERID_UI) : [...main.layers], clearColorBuffer: true });
     if (!cam.camera) throw Error('Camera component could not be created.');
     for (const key of ['aperture', 'shutter', 'sensitivity'] as const) cam.camera[key] = main[key];
     cam.camera.toneMapping = settings.tone === 'aces' ? pc.TONEMAP_ACES : pc.TONEMAP_NEUTRAL; cam.camera.gammaCorrection = pc.GAMMA_SRGB;
@@ -198,17 +201,18 @@ export class EngineController {
     const now = performance.now(); this.frameTimes.push(now);
     if (now - this.lastState > 200) { this.lastState = now; this.onState(this.status()); }
     if ((!this.settings.debug && !this.xrPacket) || !camera.camera?.enabled || this.busy || this.waitingAck || now - this.lastCapture < 1000 / this.settings.fps - 2) return;
-    this.busy = true; this.lastCapture = now; const xrFrame = this.xrPacket;
+    this.busy = true; this.lastCapture = now; const xrFrame = this.xrPacket, generation = this.generation;
     try {
       const gd = a.graphicsDevice, device = gd.wgpu, texture = this.texture as PC.Texture & { impl?: { gpuTexture?: GPUTexture } };
       if (!device || !texture?.impl?.gpuTexture || !this.captureContext || !this.captureCanvas) return;
       const uiTexture = this.uiTexture as (PC.Texture & { impl?: { gpuTexture?: GPUTexture } }) | undefined;
       const captureUI = !!this.uiCamera?.camera?.enabled && !!uiTexture?.impl?.gpuTexture && !!this.uiContext && !!this.uiCanvas;
       const encoder = device.createCommandEncoder(); if (captureUI && uiTexture?.impl?.gpuTexture && this.uiContext) encoder.copyTextureToTexture({ texture: uiTexture.impl.gpuTexture }, { texture: this.uiContext.getCurrentTexture() }, { width: 1920, height: 1080 }); encoder.copyTextureToTexture({ texture: texture.impl.gpuTexture }, { texture: this.captureContext.getCurrentTexture() }, { width: this.settings.width, height: this.settings.height }); device.queue.submit([encoder.finish()]);
-      const [bitmap, hud] = await Promise.all([createImageBitmap(this.captureCanvas, { colorSpaceConversion: 'none' }), captureUI && this.uiCanvas ? createImageBitmap(this.uiCanvas, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : Promise.resolve(undefined)]);
+      const [bitmap, hud] = await capturePair(createImageBitmap(this.captureCanvas, { colorSpaceConversion: 'none' }), captureUI && this.uiCanvas ? createImageBitmap(this.uiCanvas, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : Promise.resolve(undefined));
+      if (generation !== this.generation) { bitmap.close(); hud?.close(); return; }
       if (hud) { this.lastUIFrame = now; if (this.xrPacket) this.onUIFrame(hud); else if (this.previewUI) this.previewUI.setHUD(hud); else hud.close(); } if (!this.connected || camera !== this.headCamera) { bitmap.close(); return; }
       this.frames++; this.captureTimes.push(performance.now()); if (this.xrPacket && xrFrame) this.onXRFrame(bitmap, xrFrame); else { const preview = this.previewUI ? await this.previewUI.compose(bitmap) : bitmap; if (!this.connected || camera !== this.headCamera) preview.close(); else { this.waitingAck = true; this.onFrame(preview, ++this.frameId); } } this.captureMs = performance.now() - now;
-    } catch (error) { this.error = error instanceof Error ? error.message : String(error); } finally { this.busy = false; }
+    } catch (error) { if (generation === this.generation) this.error = error instanceof Error ? error.message : String(error); } finally { if (generation === this.generation) this.busy = false; }
   }
   acknowledge(id: number): void { if (id === this.frameId) this.waitingAck = false; }
   input(data: { x: number; z: number; keys: string[] }): void { if (this.xrPacket) return; this.movement = { x: Math.max(-1, Math.min(1, finite(data.x))), z: Math.max(-1, Math.min(1, finite(data.z))) }; this.lastInput = performance.now(); this.setKeys(new Set(data.keys.filter(key => /^(Key[A-Z]|Digit[0-9]|Space|ShiftLeft|KeyC)$/.test(key)))); }
@@ -218,6 +222,7 @@ export class EngineController {
   release(): void { this.setKeys(new Set()); this.movement = { x: 0, z: 0 }; }
   private restoreBody(): void { for (const [mesh, saved] of this.body) { mesh.isVisibleFunc = saved.visible; mesh.cull = saved.cull; } this.body.clear(); }
   stop(): void {
+    this.generation++;
     if (this.xrPacket) this.endXR(false); this.release(); this.afterRender(); this.restoreBody(); const a = this.application; this.connected = false;
     this.previewUI?.destroy(); this.previewUI = undefined; this.rightCamera?.destroy(); this.rightCamera = undefined; this.uiCamera?.destroy(); this.uiTarget?.destroy(); this.uiTexture?.destroy(); this.uiContext?.unconfigure(); this.uiCamera = this.uiTarget = this.uiTexture = this.uiContext = this.uiCanvas = undefined;
     if (a) { if (this.originalExposure !== undefined) a.scene.exposure = this.originalExposure; a.off('prerender', this.beforeRender); a.off('postrender', this.afterRender); if (this.originalFrameEnd) a.graphicsDevice.frameEnd = this.originalFrameEnd; if (this.originalSize) { a.graphicsDevice.maxPixelRatio = this.originalSize.ratio; a.setCanvasResolution(this.originalSize.mode, this.originalSize.width / this.originalSize.ratio, this.originalSize.height / this.originalSize.ratio); } }

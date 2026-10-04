@@ -1,0 +1,5 @@
+import { expect, test, vi } from 'vitest';
+import { capturePair } from '../src/client/capture-pair.js';
+test('failed HUD capture disposes the already allocated scene bitmap', async () => { const image = { close: vi.fn() }; await expect(capturePair(Promise.resolve(image), Promise.reject(Error('HUD device lost')))).rejects.toThrow('HUD device lost'); expect(image.close).toHaveBeenCalledOnce(); });
+test('failed scene capture still disposes a late overlay bitmap', async () => { const overlay = { close: vi.fn() }; await expect(capturePair(Promise.reject(Error('Scene device lost')), new Promise<typeof overlay>(resolve => setTimeout(() => resolve(overlay), 5)))).rejects.toThrow('Scene device lost'); expect(overlay.close).toHaveBeenCalledOnce(); });
+test('successful captures retain ownership for their consumers', async () => { const image = { close: vi.fn() }, overlay = { close: vi.fn() }; expect(await capturePair(Promise.resolve(image), Promise.resolve(overlay))).toEqual([image, overlay]); expect(image.close).not.toHaveBeenCalled(); expect(overlay.close).not.toHaveBeenCalled(); });

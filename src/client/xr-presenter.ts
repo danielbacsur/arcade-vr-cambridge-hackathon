@@ -5,6 +5,7 @@ import { WorldUI } from './world-ui.js';
 import { AutomaticEntry } from './xr-entry.js';
 import type { EngineController } from './engine.js';
 import { HandJoystick } from './hand-locomotion.js';
+import { FrameWatchdog } from './frame-watchdog.js';
 const pose = (transform: XRRigidTransform): Pose => ({ position: { x: transform.position.x, y: transform.position.y, z: transform.position.z }, orientation: { x: transform.orientation.x, y: transform.orientation.y, z: transform.orientation.z, w: transform.orientation.w } });
 export class XRPresenter {
   private session?: XRSession;
@@ -23,6 +24,8 @@ export class XRPresenter {
   private menuPressed = false;
   private readonly handJoystick = new HandJoystick();
   private readonly pointers = new Map<XRInputSource, { id: number; pressed: boolean; handled: boolean }>();
+  private readonly watchdog = new FrameWatchdog();
+  private failing = false;
   private featureContext?: FeatureContext;
   private renderScale = 1;
   private vignette = 0;
@@ -44,17 +47,19 @@ export class XRPresenter {
   }
   private async initialize(requested: Promise<XRSession>): Promise<void> {
     const session = await requested; this.session = session;
+    this.failing = false; this.watchdog.reset(performance.now());
     session.addEventListener('end', this.end, { once: true });
     try {
       const canvas = document.createElement('canvas'), gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, xrCompatible: true });
       if (!gl) throw Error('WebGL XR display unavailable'); await gl.makeXRCompatible(); this.gl = gl;
-      session.addEventListener('visibilitychange', () => { this.releasePointers(); this.engine.release(); if (session.visibilityState === 'visible') this.engine.resetTracking(); });
+      canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); this.fail('VR display was interrupted. Tap the game to resume VR.'); });
+      session.addEventListener('visibilitychange', () => { this.releasePointers(); this.engine.release(); this.watchdog.reset(performance.now()); if (session.visibilityState === 'visible') this.engine.resetTracking(); });
       this.layer = new XRWebGLLayer(session, gl, { alpha: false, antialias: false, depth: false, framebufferScaleFactor: 1 }); session.updateRenderState({ baseLayer: this.layer, depthNear: .05, depthFar: 1000 });
       this.space = await session.requestReferenceSpace('local-floor'); this.space.addEventListener('reset', () => this.engine.resetTracking());
       this.program = createStereoProgram(gl); this.texture = gl.createTexture() || undefined; this.vertex = gl.createBuffer() || undefined;
       gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex || null); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.bindTexture(gl.TEXTURE_2D, this.texture || null); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      this.engine.onXRFrame = (bitmap, packet) => { if (this.session !== session) { bitmap.close(); return; } this.bitmap?.close(); this.bitmap = bitmap; this.captured = packet; this.dirty = true; };
+      this.engine.onXRFrame = (bitmap, packet) => { if (this.session !== session || this.failing) { bitmap.close(); return; } this.watchdog.reset(performance.now()); this.bitmap?.close(); this.bitmap = bitmap; this.captured = packet; this.dirty = true; };
       document.documentElement.classList.add('arcade-xr-active'); this.engine.xrUI = 'head-locked-hud';
       this.ui = new WorldUI(gl, message => this.engine.reportError(message), true, (x, y, phase) => phase ? this.engine.pointerUI(x, y, phase) : this.engine.clickUI(x, y), { width: 1920, height: 1080 }, { followHead: true, handControls: true }); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
       const canvasElement = this.engine.canvas(); if (canvasElement) canvasElement.dataset.arcadeVrEngine = 'true';
@@ -68,7 +73,10 @@ export class XRPresenter {
   }
   private frame = (time: number, frame: XRFrame): void => {
     const session = this.session, space = this.space, gl = this.gl, layer = this.layer; if (!session || !space || !gl || !layer) return;
-    if (session.visibilityState === 'hidden') { this.releasePointers(); this.engine.release(); session.requestAnimationFrame(this.frame); return; }
+    if (this.failing) return;
+    if (this.watchdog.stalled(performance.now(), session.visibilityState === 'visible')) { this.fail('VR rendering stopped. Tap the game to resume VR.'); return; }
+    if (gl.isContextLost()) { this.fail('VR display was interrupted. Tap the game to resume VR.'); return; }
+    if (session.visibilityState === 'hidden') { this.releasePointers(); this.engine.release(); this.watchdog.reset(performance.now()); session.requestAnimationFrame(this.frame); return; }
     session.requestAnimationFrame(this.frame); const viewer = frame.getViewerPose(space); if (!viewer || viewer.views.length !== 2) { this.releasePointers(); this.engine.release(); return; }
     const center = pose(viewer.transform); this.ui?.anchor(center); this.ui?.hover(); const seen = new Set<XRInputSource>();
     const views = viewer.views.map(view => { const viewport = layer.getViewport(view); if (!viewport) throw Error('Missing eye viewport'); return { ...pose(view.transform), eye: view.eye as 'left' | 'right', projection: Array.from(view.projectionMatrix), viewport: { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height } }; });
@@ -96,7 +104,7 @@ export class XRPresenter {
     if (hudMove && (hudMove.x || hudMove.z)) move = hudMove;
     const packet: XRPacket = { frameId: ++this.id, time, center, views, hands, move, keys };
     if (this.featureContext) dispatchFeatures({ type: 'frame', context: this.featureContext, packet, frame });
-    const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale);
+    const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale, 1600, 1600);
     if (menuPressed && !this.menuPressed) this.ui?.anchor(packet.center); this.menuPressed = menuPressed;
     this.engine.renderXR(packet, size); this.ui?.update(time);
     gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -123,6 +131,7 @@ export class XRPresenter {
     pointer.pressed = pressed;
   }
   private releasePointers(): void { this.ui?.releasePointers(); this.pointers.clear(); this.handJoystick.release(); }
+  private fail(message: string): void { if (this.failing) return; this.failing = true; const session = this.session; if (session) void session.end().catch(() => { if (this.session === session) this.end(); }).finally(() => this.engine.reportError(message)); }
 
   private end = (): void => { this.releasePointers(); if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
 }
