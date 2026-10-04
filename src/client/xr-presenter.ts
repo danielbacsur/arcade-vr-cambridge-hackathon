@@ -22,6 +22,7 @@ export class XRPresenter {
   private id = 0;
   private menuPressed = false;
   private readonly handJoystick = new HandJoystick();
+  private readonly pointers = new Map<XRInputSource, { id: number; pressed: boolean; handled: boolean }>();
   private featureContext?: FeatureContext;
   private renderScale = 1;
   private vignette = 0;
@@ -38,7 +39,7 @@ export class XRPresenter {
   private start(): Promise<void> {
     if (!navigator.xr) return Promise.reject(Error('WebXR unavailable'));
     // Make the permission request before any awaited work consumes transient activation.
-    const requested = navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'dom-overlay'], domOverlay: { root: document.body } });
+    const requested = navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
     return this.initialize(requested);
   }
   private async initialize(requested: Promise<XRSession>): Promise<void> {
@@ -47,16 +48,18 @@ export class XRPresenter {
     try {
       const canvas = document.createElement('canvas'), gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, xrCompatible: true });
       if (!gl) throw Error('WebGL XR display unavailable'); await gl.makeXRCompatible(); this.gl = gl;
+      session.addEventListener('visibilitychange', () => { this.releasePointers(); this.engine.release(); if (session.visibilityState === 'visible') this.engine.resetTracking(); });
       this.layer = new XRWebGLLayer(session, gl, { alpha: false, antialias: false, depth: false, framebufferScaleFactor: 1 }); session.updateRenderState({ baseLayer: this.layer, depthNear: .05, depthFar: 1000 });
       this.space = await session.requestReferenceSpace('local-floor'); this.space.addEventListener('reset', () => this.engine.resetTracking());
       this.program = createStereoProgram(gl); this.texture = gl.createTexture() || undefined; this.vertex = gl.createBuffer() || undefined;
       gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex || null); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
       gl.bindTexture(gl.TEXTURE_2D, this.texture || null); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      this.engine.onXRFrame = (bitmap, packet) => { this.bitmap?.close(); this.bitmap = bitmap; this.captured = packet; this.dirty = true; };
-      document.documentElement.classList.add('arcade-xr-active'); this.engine.xrUI = session.domOverlayState ? 'dom-overlay' : 'world-panel';
-      this.ui = new WorldUI(gl, message => this.engine.reportError(message), !session.domOverlayState, (x, y) => this.engine.clickUI(x, y)); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
+      this.engine.onXRFrame = (bitmap, packet) => { if (this.session !== session) { bitmap.close(); return; } this.bitmap?.close(); this.bitmap = bitmap; this.captured = packet; this.dirty = true; };
+      document.documentElement.classList.add('arcade-xr-active'); this.engine.xrUI = 'head-locked-hud';
+      this.ui = new WorldUI(gl, message => this.engine.reportError(message), true, (x, y, phase) => phase ? this.engine.pointerUI(x, y, phase) : this.engine.clickUI(x, y), { width: 1920, height: 1080 }, { followHead: true, handControls: true }); this.engine.onUIFrame = bitmap => { if (this.ui) this.ui.setEngineBitmap(bitmap); else bitmap.close(); };
       const canvasElement = this.engine.canvas(); if (canvasElement) canvasElement.dataset.arcadeVrEngine = 'true';
-      session.addEventListener('select', event => { if (!this.space || !this.ui) return; const ray = event.frame.getPose(event.inputSource.targetRaySpace, this.space); const handled = ray ? this.ui.click(pose(ray.transform)) : false; if (this.featureContext) dispatchFeatures({ type: 'select', context: this.featureContext, source: event.inputSource, handled }); });
+      const selection = (event: XRInputSourceEvent, pressed: boolean) => { if (!this.space || !this.ui || event.inputSource.hand) return; const head = event.frame.getViewerPose(this.space), ray = event.frame.getPose(event.inputSource.targetRaySpace, this.space); if (head) this.ui.anchor(pose(head.transform)); this.updatePointer(event.inputSource, ray ? pose(ray.transform) : undefined, pressed); };
+      session.addEventListener('selectstart', event => selection(event, true)); session.addEventListener('selectend', event => selection(event, false));
       this.featureContext = { engine: this.engine, session, space: this.space, gl, ui: this.ui, setRenderScale: value => { if (Number.isFinite(value)) this.renderScale = Math.max(.5, Math.min(1, value)); }, setVignette: value => { if (Number.isFinite(value)) this.vignette = Math.max(0, Math.min(.8, value)); } };
       this.engine.onBeforeXRRender = packet => { if (this.featureContext) dispatchFeatures({ type: 'render', context: this.featureContext, packet }); };
       dispatchFeatures({ type: 'start', context: this.featureContext });
@@ -65,7 +68,9 @@ export class XRPresenter {
   }
   private frame = (time: number, frame: XRFrame): void => {
     const session = this.session, space = this.space, gl = this.gl, layer = this.layer; if (!session || !space || !gl || !layer) return;
-    session.requestAnimationFrame(this.frame); const viewer = frame.getViewerPose(space); if (!viewer || viewer.views.length !== 2) { this.handJoystick.release(); this.engine.release(); return; }
+    if (session.visibilityState === 'hidden') { this.releasePointers(); this.engine.release(); session.requestAnimationFrame(this.frame); return; }
+    session.requestAnimationFrame(this.frame); const viewer = frame.getViewerPose(space); if (!viewer || viewer.views.length !== 2) { this.releasePointers(); this.engine.release(); return; }
+    const center = pose(viewer.transform); this.ui?.anchor(center); this.ui?.hover(); const seen = new Set<XRInputSource>();
     const views = viewer.views.map(view => { const viewport = layer.getViewport(view); if (!viewport) throw Error('Missing eye viewport'); return { ...pose(view.transform), eye: view.eye as 'left' | 'right', projection: Array.from(view.projectionMatrix), viewport: { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height } }; });
     const hands: HandPose[] = []; let menuPressed = false; let move = { x: 0, z: 0 }; const keys: string[] = [];
     for (const source of session.inputSources) {
@@ -76,13 +81,19 @@ export class XRPresenter {
         const thumb = hand.joints['thumb-tip']?.position, finger = hand.joints['index-finger-tip']?.position; if (thumb && finger) hand.pinch = Math.hypot(thumb.x - finger.x, thumb.y - finger.y, thumb.z - finger.z) < .025 ? 1 : 0;
       }
       hands.push(hand); const axes = source.gamepad?.axes;
+      seen.add(source); const targetRay = frame.getPose(source.targetRaySpace, space), ray = targetRay ? pose(targetRay.transform) : undefined;
+      if (ray && (source.handedness === 'right' || !hands.some(item => item.side === 'right'))) this.ui?.hover(ray);
+      if (source.hand) { const thumb = hand.joints?.['thumb-tip']?.position, finger = hand.joints?.['index-finger-tip']?.position; const pressed = !!thumb && !!finger && Math.hypot(thumb.x - finger.x, thumb.y - finger.y, thumb.z - finger.z) < (this.pointers.get(source)?.pressed ? .04 : .025); this.updatePointer(source, ray, pressed); }
+      else if (this.pointers.get(source)?.pressed) this.updatePointer(source, ray, true);
       if (source.handedness === 'left' && axes) move = { x: Math.abs(axes[2] || axes[0] || 0) > .15 ? axes[2] || axes[0] || 0 : 0, z: Math.abs(axes[3] || axes[1] || 0) > .15 ? axes[3] || axes[1] || 0 : 0 };
       if (source.handedness === 'right' && source.gamepad?.buttons[4]?.pressed) keys.push('Space');
       if (source.handedness === 'left' && source.gamepad?.buttons[4]?.pressed) keys.push('ShiftLeft');
       if (source.handedness === 'left' && source.gamepad?.buttons[5]?.pressed) menuPressed = true;
     }
-    const center = pose(viewer.transform), handMove = this.handJoystick.update(hands.find(hand => hand.side === 'left'), center);
+    for (const source of this.pointers.keys()) if (!seen.has(source)) { const pointer = this.pointers.get(source); if (pointer) this.ui?.pointer(undefined, 'up', pointer.id); this.pointers.delete(source); }
+    const handMove = this.handJoystick.update(hands.find(hand => hand.side === 'left'), center), hudMove = this.ui?.movement();
     if (handMove.x || handMove.z) move = handMove;
+    if (hudMove && (hudMove.x || hudMove.z)) move = hudMove;
     const packet: XRPacket = { frameId: ++this.id, time, center, views, hands, move, keys };
     if (this.featureContext) dispatchFeatures({ type: 'frame', context: this.featureContext, packet, frame });
     const size = eyeDimensions((views[0]?.viewport.width || 1) * this.renderScale, (views[0]?.viewport.height || 1) * this.renderScale);
@@ -103,7 +114,17 @@ export class XRPresenter {
       const viewport = view.viewport; gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height); gl.uniform1f(gl.getUniformLocation(this.program, 'vignette'), this.vignette); gl.uniform1f(gl.getUniformLocation(this.program, 'eye'), view.eye === 'left' ? 0 : 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); const xrView = viewer.views.find(eye => eye.eye === view.eye); if (xrView) this.ui?.draw(xrView.projectionMatrix, xrView.transform.inverse.matrix, packet.center); if (this.featureContext) dispatchFeatures({ type: 'eye', context: this.featureContext, eye: view }); }
   };
 
-  private end = (): void => { this.handJoystick.release(); if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
+  private updatePointer(source: XRInputSource, ray: Pose | undefined, pressed: boolean): void {
+    let pointer = this.pointers.get(source); if (!pointer) { pointer = { id: source.handedness === 'left' ? 200 : 201, pressed: false, handled: false }; this.pointers.set(source, pointer); }
+    if (!ray) pressed = false;
+    if (pressed && !pointer.pressed) pointer.handled = this.ui?.pointer(ray, 'down', pointer.id) || false;
+    else if (pressed) this.ui?.pointer(ray, 'move', pointer.id);
+    else if (pointer.pressed) { this.ui?.pointer(ray, 'up', pointer.id); if (ray && this.featureContext) dispatchFeatures({ type: 'select', context: this.featureContext, source, handled: pointer.handled }); }
+    pointer.pressed = pressed;
+  }
+  private releasePointers(): void { this.ui?.releasePointers(); this.pointers.clear(); this.handJoystick.release(); }
+
+  private end = (): void => { this.releasePointers(); if (this.featureContext) dispatchFeatures({ type: 'end', context: this.featureContext }); this.featureContext = undefined; this.engine.onBeforeXRRender = () => {}; this.renderScale = 1; this.vignette = 0; this.ui?.destroy(); this.ui = undefined; const canvas = this.engine.canvas(); if (canvas) delete canvas.dataset.arcadeVrEngine; this.engine.endXR(); this.bitmap?.close(); this.bitmap = undefined; this.captured = undefined; this.dirty = false; if (this.gl) { this.gl.deleteTexture(this.texture || null); this.gl.deleteBuffer(this.vertex || null); this.gl.deleteProgram(this.program || null); } this.session = this.space = this.layer = this.gl = this.program = this.texture = this.vertex = undefined; document.documentElement.classList.remove('arcade-xr-active'); };
 }
 
 export function createStereoProgram(gl: WebGL2RenderingContext): WebGLProgram {

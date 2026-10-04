@@ -5,6 +5,7 @@ export class HandJoystick {
   private anchor?: Vector3;
   private heading = 0;
   update(hand: HandPose | undefined, head: Pose): { x: number; z: number } {
+    if (hand?.pinch) return this.release();
     const wrist = hand?.joints?.wrist?.position, thumb = hand?.joints?.['thumb-tip']?.position, middle = hand?.joints?.['middle-finger-tip']?.position;
     if (!wrist || !thumb || !middle || ![wrist, thumb, middle, head.position].every(p => [p.x, p.y, p.z].every(Number.isFinite))) return this.release();
     const distance = Math.hypot(thumb.x - middle.x, thumb.y - middle.y, thumb.z - middle.z);
