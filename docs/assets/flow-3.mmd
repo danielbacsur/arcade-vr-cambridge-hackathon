@@ -1,0 +1,14 @@
+flowchart TD
+  READY[Game and player ready] --> SUPPORT{Immersive WebXR supported?}
+  SUPPORT -->|no| DESKTOP[Desktop split view]
+  SUPPORT -->|yes| ACTIVATE[Existing native game interaction]
+  ACTIVATE --> CONSENT[Browser-owned consent]
+  CONSENT --> SESSION[Session in the game document]
+  SESSION --> FRAME[XR frame clock and native eye poses]
+  FRAME --> TRACK[Stable root anchor and meters calibration]
+  TRACK --> POSE[Direct look and temporary rig overrides]
+  POSE --> PC[Two PlayCanvas cameras and native projections]
+  PC --> GPU[Side-by-side WebGPU render target]
+  GPU --> COPY[Bounded local GPU canvas capture]
+  COPY --> GL[WebGL XR compositor with rotational reprojection]
+  GL --> EYES[Browser eye viewports]

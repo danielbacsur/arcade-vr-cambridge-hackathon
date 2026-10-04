@@ -1,0 +1,13 @@
+sequenceDiagram
+  participant C as Outside controls
+  participant W as Player wrapper
+  participant R as Game runtime
+  participant G as Arcade controller
+  C->>W: Movement, keys, drag-to-look or gamepad
+  W->>R: postMessage with channel and session
+  R->>R: Validate source, origin and session
+  R->>G: Input source and direct head/body look
+  G->>R: Render player camera
+  R->>W: Transfer one ImageBitmap
+  W->>W: Draw and close bitmap
+  W->>R: Frame acknowledgment

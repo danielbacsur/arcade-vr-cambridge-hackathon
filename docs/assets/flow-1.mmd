@@ -1,0 +1,12 @@
+flowchart LR
+  URL[Original path and query] --> HOST[Proxy hostname routing]
+  HOST --> SITE[Original Arcade site or editor]
+  HOST --> PLAY{Play or mp route?}
+  PLAY -->|yes| WRAP[Minimal player wrapper]
+  WRAP --> RUNTIME[Isolated game runtime iframe]
+  RUNTIME --> ENGINE[Original PlayCanvas scene]
+  SITE --> HTTP[Fixed-host HTTP proxy]
+  RUNTIME --> HTTP
+  HTTP --> ASSETS[Arcade APIs and signed assets]
+  RUNTIME <-->|Text and binary| WS[WebSocket proxy]
+  WS <--> ROOM[Original multiplayer server]

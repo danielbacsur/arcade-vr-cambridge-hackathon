@@ -1,34 +1,43 @@
-# Production and hackathon delivery
+# Completed production and hackathon delivery
 
-Work through these tasks in order. Significant changes get separate commits. Do not push or publish until Daniel reviews the result. Preserve the original Arcade site and game UI; desktop stays a minimal split preview and Quest uses immersive rendering automatically.
+All software deliverables below are implemented and committed locally. Significant changes have separate commits. Nothing was pushed, deployed or submitted. Main is at `~/arcade-vr-proxy`; five optional features remain isolated for morning review.
 
-- [x] Remove obsolete extension, relay, fixture, raw evidence and prototype files from the production repository.
-- [x] Replace Python and JavaScript sources with a TypeScript-only server and browser runtime; add strict checks, reproducible builds, linting and meaningful tests.
-- [x] Support single-player and multiplayer URLs, external asset hosts, streaming and multiplayer connections. Run a reproducible, broad compatibility matrix; identify upstream/authentication/network failures accurately.
-- [x] Request immersive entry at game readiness when the browser permits it; otherwise reuse the game's existing Start interaction, with no redundant entry button. Do not bypass browser consent or user activation requirements.
-- [x] Correct per-eye projection/aspect/resolution, remove animated head-bone camera anchoring, preserve consistent tracking space, synchronize frames and stabilize the world.
-- [x] Map controller grips and WebXR hand joints onto generic Mixamo arms/hands with calibrated inverse kinematics, missing-joint handling and pose restoration.
-- [x] Preserve instructions and menus with WebXR DOM overlays where supported and a clickable in-world UI fallback.
-- [ ] Explore the actual Arcade editor and provide a working optional VR editing path using public editor integrations where available.
-- [ ] Build a finite set of useful hackathon extras in isolated branches/worktrees, test them, and prepare merge instructions without merging or pushing.
-- [ ] Produce accurate flowcharts, illustrations and hackathon-ready documentation aligned with https://about.tryarcade.com/hackathon.
-- [ ] Complete main and optional-branch build/type/lint/tests, run browser validation, review deployment constraints and secrets, commit all intended changes, and confirm nothing was pushed.
+- [x] Remove obsolete experiments, extension prototypes, relays and raw evidence from the production repository; preserve an archive outside it.
+- [x] Migrate application and tooling to TypeScript, remove Python requirements, and pass strict types, lint, tests and production builds.
+- [x] Support single-player and multiplayer routing, relative/signed assets, streaming and WebSocket connections; run broad live coverage with strict failure classification.
+- [x] Reuse native game activation for browser-owned immersive consent, without a redundant entry button; wait until the original loading process finishes.
+- [x] Use native eye projection and viewports, stable root anchoring, standing-height calibration, synchronized frame metadata and rotational reprojection; correct sRGB and transparent UI blending.
+- [x] Map tracked hands/controller grips onto Mixamo arms, wrists and fingers with bounded inverse kinematics, missing-tracking handling and animation restoration.
+- [x] Preserve original DOM menus and engine HUD through DOM overlays or clickable transparent world panels.
+- [x] Explore the authenticated Arcade editor, verify native box placement and Undo, and implement an optional spatial editing panel with tracked pointer interactions.
+- [x] Implement comfort controls, adaptive quality, haptics/actions, visible hands and the spatial editor on five independent branches/worktrees; validate them individually and together.
+- [x] Create four architecture diagrams, two conceptual illustrations, actual browser screenshots, deployment guidance and documentation aligned with the official hackathon brief.
+- [x] Complete automated/browser verification, audit tracked files and secrets, prepare review instructions, commit the delivery documentation, and confirm the remote remains unchanged.
+
+## Final verification
+
+| Check | Result |
+| --- | --- |
+| Main strict types, lint, tests and build | Pass; 51 tests across 14 files |
+| Four runtime feature branches | Pass individually; 53 tests each |
+| Spatial editor branch | Pass; 52 tests; optional extension bundle builds |
+| Temporary combined merge | No conflicts; strict types, lint, build and 60 tests across 19 files pass; removed after validation |
+| Public catalog transport/assets | 121 games / 352 checks; 131 HTTP 200 and 221 HTTP 206; zero proxy discrepancies, inconclusive checks or upstream failures |
+| Real browser GPU stereo fixture | Different eye views, paired frame metadata, sRGB red 128, transparent HUD alpha 128, correct blended color, renderer/input restoration |
+| World UI browser fixture | Both shaders compile; ray interaction clicks the original DOM button |
+| Live browser gameplay | Six Seven and Purrbound load; outside movement/look controls work; original instructions and HUD remain visible |
+| Layout and editor | Matching desktop panes, stacked mobile panes, preserved 1920 × 1080 UI layout; original editor Box placement and Undo verified |
+| Repository audit | TypeScript-only executable sources/tooling; no tracked Python or JavaScript sources, dependency symlinks or detected credentials |
+| Remote main | Remains `889489e50f3d0c0d32c6217cc7c222a832f27353`; no push |
+
+Browser screenshots are actual desktop/mobile evidence. The two generated illustrations explain the design and are not headset screenshots. Chrome became unavailable when the Mac locked; the available in-app browser completed the local GPU/UI checks without unlocking the device.
 
 ## Validation boundaries
 
-No Quest is available during implementation. Simulator tests validate math, frame sequencing, lifecycle, input mapping and UI integration, but do not prove headset comfort, GPU performance, hand tracking or device support. No proxy can guarantee unavailable, private, expired or broken upstream games will load. Browser user activation and consent rules remain authoritative.
+No Quest was available. Native headset performance, comfort, tracking quality and hand-driven editor use remain unverified on hardware. Simulated poses and real GPU tests establish software behavior, not headset comfort. Browser consent requires user activation: the game's original Start interaction requests it as soon as the runtime is ready. A page cannot silently bypass that requirement.
 
-## Delivery log
+Transport coverage samples catalog bootstrap and assets, not every dynamic asset or every game playthrough. Private, deleted, expired or broken upstream games cannot be guaranteed by a proxy; an expired multiplayer room can be recovered through the original room flow. Authentication and upstream failures are surfaced rather than bypassed.
 
-- Started from the private repository at `~/arcade-vr-proxy`, commit `889489e`.
-- The current multiplayer gap is structural: the wrapper recognizes only `/play/<uuid>` and no WebSocket proxy exists.
+Rig hand overrides are local rendering, not multiplayer hand replication. Complex cross-origin UI and browser keyboards remain platform constraints. The optional editor is a spatial panel with native transactions, not a volumetric scene editor. Its extension is built but not installed; the new blank editor draft used for testing may remain in the account, with the placed box undone.
 
-- TypeScript migration: strict typecheck, lint, 20 integration/routing tests and production build pass. No Python application or extension is required.
-
-- Compatibility: public catalog sweep 121 games / 346 requests, zero discrepancies; Six Seven reaches Start, expired multiplayer link recovers into a fresh server. Broad in-game/hardware checks remain distinct from transport coverage.
-
-- Immersive core: same-document activation and session ownership, native per-eye projection, headset frame clock, bounded stereo GPU capture and rotational reprojection implemented. Hand and UI fallback work follows; hardware remains unverified.
-
-- Hand mapping: 41 checks pass, including real PlayCanvas graph IK, unreachable/missing tracking, nonhumanoid fallback and restoration of original animation transforms. Mapping is local rendering; remote hand replication requires an Arcade multiplayer protocol extension.
-
-- UI: browser compiled both stereo/panel shaders and a world-panel ray clicked the original DOM button. DOM overlay plus a PlayCanvas HUD panel preserves both UI systems; controller select maps buttons and legacy canvas input, left menu reanchors. Device support and cross-origin iframe/complex CSS capture remain validation boundaries.
+See [compatibility evidence](COMPATIBILITY.md), [optional feature review](REVIEW.md), [architecture](ARCHITECTURE.md), [deployment](DEPLOYMENT.md) and [hackathon documentation](HACKATHON.md).
