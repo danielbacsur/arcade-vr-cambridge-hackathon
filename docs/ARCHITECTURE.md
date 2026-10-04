@@ -47,7 +47,7 @@ sequenceDiagram
   W->>R: Frame acknowledgment
 ```
 
-Both panes retain a 1920 × 1080 document layout and matching aspect ratios. CSS scales the live iframe; rendering resolution changes separately. The desktop head feed defaults to 960 × 540 at up to 30 fps. One pending capture and one unacknowledged frame bound memory and latency. Blurring, hiding or navigating releases controls; stale input times out in the runtime.
+Both panes use a 1280 × 720 document layout and matching aspect ratios. CSS scales the live iframe; rendering resolution changes separately. The desktop head feed defaults to 960 × 540 at up to 30 fps. One pending capture and one unacknowledged frame bound memory and latency. Blurring, hiding or navigating releases controls; stale input times out in the runtime.
 
 ## Immersive rendering
 
@@ -70,7 +70,7 @@ flowchart TD
 
 The runtime owns the XR session so native game interactions can carry transient activation into `requestSession`. Readiness excludes Arcade's visible asset/world loading progress bar. There is no second Enter VR button. If loading finishes after activation expires, the existing Start/game interaction is still required. Browsers require activation and may show permission UI; automatic consent without any qualifying interaction cannot be guaranteed. [WebXR session rules](https://immersive-web.github.io/webxr/#dom-xrsystem-requestsession).
 
-The engine's ordinary animation loop pauses during XR. Its update/render tick runs from the headset clock. Original gameplay cameras stop rendering; two injected cameras use each eye's actual pose and asymmetric projection. Eye dimensions use a single scale factor and a 1600-pixel per-dimension cap, preserving aspect and IPD. Desktop's 80-degree preview FOV is not used for immersive projection.
+The engine's ordinary animation loop pauses during XR. Its update/render tick runs from the headset clock. Original gameplay cameras stop rendering; two injected cameras use each eye's actual pose and asymmetric projection. Eye dimensions use a single scale factor and a 960-pixel per-dimension cap, preserving aspect and IPD. Desktop's 80-degree preview FOV is not used for immersive projection.
 
 The game uses WebGPU. The compositor uses WebGL WebXR without requiring `XRGPUBinding`: a local GPU copy and transferable bitmap bridge connect the two. No CPU pixel array, server round trip, JPEG encoding or frame queue is involved in stereo capture. Texture upload happens only for a new bitmap. Stereo capture preserves encoded sRGB values; UI bitmaps explicitly use straight alpha, preventing a second alpha multiplication in the compositor. This bridge still has completion latency; it is not zero-copy.
 
@@ -97,7 +97,7 @@ flowchart LR
 
 Arm IK uses shoulder/elbow/wrist bones, not changes to the game's physics or inventory. Finger joints map when a recognized chain exists. Missing tracking restores the original animation rather than freezing a stale pose. Nonhumanoid rigs remain playable without synthetic bone assumptions. Remote multiplayer hand replication is not implemented; it needs an upstream protocol contract. The [WebXR hand input API](https://immersive-web.github.io/webxr-hand-input/) supplies optional joints; controller grips are the fallback.
 
-Original HTML menus use a transparent view-following HUD that captures DOM changes at up to 4 fps. Gameplay deliberately uses this consistent hand-interaction path instead of browser-dependent DOM overlays. PlayCanvas's UI layer has its own 1920 × 1080 transparent target at up to 8 fps. Hand rays focus, press, drag and release the original element, or forward engine HUD pointer/mouse input. The HUD follows the full head pose; the editor retains its anchored panel. Left-hand thumb/index pinch steering drives the existing player input source without a movement widget. Complex cross-origin iframe content, browser-controlled keyboards, tainted canvases and unsupported CSS remain browser constraints.
+Original HTML menus use a transparent view-following HUD that captures DOM changes at up to 2 fps. Gameplay deliberately uses this consistent hand-interaction path instead of browser-dependent DOM overlays. PlayCanvas's UI layer has its own 1280 × 720 transparent target at up to 4 fps. Hand rays focus, press, drag and release the original element, or forward engine HUD pointer/mouse input. The HUD follows the full head pose; the editor retains its anchored panel. Deliberately armed left-hand open-then-thumb/index-pinch steering drives the existing player input source without a movement widget. Complex cross-origin iframe content, browser-controlled keyboards, tainted canvases and unsupported CSS remain browser constraints.
 
 ## Optional modules
 

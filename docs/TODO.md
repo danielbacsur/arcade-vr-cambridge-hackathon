@@ -26,7 +26,7 @@ All software deliverables below are implemented and committed locally. Significa
 | Real browser GPU stereo fixture | Different eye views, paired frame metadata, sRGB red 128, transparent HUD alpha 128, correct blended color, renderer/input restoration |
 | World UI browser fixture | Both shaders compile; ray interaction clicks the original DOM button |
 | Live browser gameplay | Six Seven and Purrbound load; outside movement/look controls work; original instructions and HUD remain visible |
-| Layout and editor | Matching desktop panes, stacked mobile panes, preserved 1920 × 1080 UI layout; original editor Box placement and Undo verified |
+| Layout and editor | Matching desktop panes, stacked mobile panes, 720p-capped laptop rendering; original editor Box placement and Undo verified |
 | Repository audit | TypeScript-only executable sources/tooling; no tracked Python or JavaScript sources, dependency symlinks or detected credentials |
 | Remote main | Remains `889489e50f3d0c0d32c6217cc7c222a832f27353`; no push |
 
@@ -67,3 +67,13 @@ The user reports more stable world tracking on Quest. The reported restart/black
 - [x] Use familiar left thumb/index pinch to steer from a floating hand anchor; reserve right pinch for menus.
 - [x] Add time-based steering smoothing, pinch hysteresis, immediate neutral/release stops and hand-role isolation tests.
 - [x] Pass strict types, lint, build and 72 tests; browser verifies the old joystick area is transparent and head-following menu selection still works.
+
+## Quest performance and accidental movement follow-up
+
+- [x] Require deliberate open-hand and pinch dwell, chest-level forward placement, and rearming after tracking loss or release. Ignore hand-emulated gamepad axes/buttons.
+- [x] Add guarded camera capture and late-frame edge clamping without changing native headset optics.
+- [x] Reduce stereo pixel budgets, avoid ticking a busy capture pipeline, reuse texture storage, and lower shadow/UI work.
+- [x] Fill the Quest browser viewport and cap laptop rendering to 720p.
+- [x] Validate safety/quality/projection regressions, real WebGPU stereo capture and clickable head-following UI on the laptop.
+
+Real Quest performance and physical gesture ergonomics require device testing; no on-device FPS claim is made.
