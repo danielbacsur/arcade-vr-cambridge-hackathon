@@ -1,6 +1,6 @@
 # Completed production and hackathon delivery
 
-All software deliverables below are implemented and committed locally. Significant changes have separate commits. Nothing was pushed, deployed or submitted. Main is at `~/arcade-vr-proxy`; five optional features remain isolated for morning review.
+All software deliverables below are implemented and committed locally. Significant changes have separate commits. Nothing was pushed, deployed or submitted. Main is at `~/arcade-vr-proxy`; the five previously optional features are now merged into main.
 
 - [x] Remove obsolete experiments, extension prototypes, relays and raw evidence from the production repository; preserve an archive outside it.
 - [x] Migrate application and tooling to TypeScript, remove Python requirements, and pass strict types, lint, tests and production builds.
@@ -14,7 +14,7 @@ All software deliverables below are implemented and committed locally. Significa
 - [x] Create four architecture diagrams, two conceptual illustrations, actual browser screenshots, deployment guidance and documentation aligned with the official hackathon brief.
 - [x] Complete automated/browser verification, audit tracked files and secrets, prepare review instructions, commit the delivery documentation, and confirm the remote remains unchanged.
 
-## Final verification
+## Overnight baseline verification
 
 | Check | Result |
 | --- | --- |
@@ -41,3 +41,12 @@ Transport coverage samples catalog bootstrap and assets, not every dynamic asset
 Rig hand overrides are local rendering, not multiplayer hand replication. Complex cross-origin UI and browser keyboards remain platform constraints. The optional editor is a spatial panel with native transactions, not a volumetric scene editor. Its extension is built but not installed; the new blank editor draft used for testing may remain in the account, with the placed box undone.
 
 See [compatibility evidence](COMPATIBILITY.md), [optional feature review](REVIEW.md), [architecture](ARCHITECTURE.md), [deployment](DEPLOYMENT.md) and [hackathon documentation](HACKATHON.md).
+
+## Follow-up integration
+
+- [x] Merge all five feature branches into main with separate merge commits.
+- [x] Add a left thumb/middle pinch floating joystick for hand-only movement; release/tracking loss stops immediately.
+- [x] Render a two-eye desktop player preview with original engine HUD and cached DOM UI on both eyes.
+- [x] Pass strict types, lint, build and 63 tests; verify the desktop HUD and XR transition with a real browser GPU fixture.
+
+Nothing pushed or deployed. See the updated [integrated feature guide](REVIEW.md).

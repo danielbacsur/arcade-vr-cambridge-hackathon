@@ -61,3 +61,11 @@ Arcade VR is a TypeScript runtime adapter that brings existing Arcade games into
 - [Deployment and authentication boundaries](DEPLOYMENT.md)
 - [Optional feature review and merge instructions](REVIEW.md)
 - [Completed delivery record](TODO.md)
+
+## Integrated demo update
+
+All five feature branches are now part of main. For a laptop presentation, the right pane shows two offset player eye views with the game's original HUD and menus composited into both eyes. The left pane retains the live game. Drag the right pane to look around. This is a visual demonstration of stereo gameplay, not exact Quest optics.
+
+For hand-only movement, pinch the left thumb and middle finger together, then move the hand like a floating joystick. Release to stop; index pinch remains available for UI selection. The gesture has automated release/dead-zone/heading tests, but still needs real hand-tracking hardware validation.
+
+![Live laptop stereo preview with original gameplay HUD](assets/stereo-player-preview.png)

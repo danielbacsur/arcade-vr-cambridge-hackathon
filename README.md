@@ -46,7 +46,7 @@ No proxy can guarantee private, deleted, expired or broken upstream games. Compa
 
 ## Delivery status
 
-The cleaned main application passes strict types, lint, tests and builds. A live sweep covered 121 public games and 352 bootstrap/asset checks with no proxy discrepancies. Five optional features are isolated in local branches/worktrees, independently checked and tested together: spatial editor, comfort controls, adaptive quality, haptics/actions and visible hands. See [review instructions](docs/REVIEW.md) and [the completed delivery record](docs/TODO.md).
+The cleaned main application passes strict types, lint, tests and builds. A live sweep covered 121 public games and 352 bootstrap/asset checks with no proxy discrepancies. Five features have now been merged into main, independently checked and tested together: spatial editor, comfort controls, adaptive quality, haptics/actions and visible hands. See [integrated feature instructions](docs/REVIEW.md) and [the completed delivery record](docs/TODO.md).
 
 ![Actual desktop preview with preserved game HUD and player view](docs/assets/desktop-player.jpg)
 
