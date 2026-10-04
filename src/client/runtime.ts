@@ -11,7 +11,7 @@ let owner: { source: Window; origin: string } | undefined;
 function send(data: Record<string, unknown>, transfer: Transferable[] = []): void { owner?.source.postMessage({ channel: CHANNEL, direction: 'stream', session, ...data }, owner.origin, transfer); }
 engine.onState = state => send({ type: 'state', state });
 engine.onFrame = (bitmap, id) => { if (owner) send({ type: 'bitmap', bitmap, width: bitmap.width, height: bitmap.height, id }, [bitmap]); else bitmap.close(); };
-function settings(value: unknown): RenderSettings { const v = isRecord(value) ? value : {}; return { debug: v.debug !== false, width: Math.max(320, Math.min(1280, finite(v.width, 960))), height: Math.max(180, Math.min(720, finite(v.height, 540))), fps: Math.max(12, Math.min(90, finite(v.fps, 30))), tone: v.tone === 'aces' ? 'aces' : 'neutral', exposure: Math.max(.1, Math.min(2, finite(v.exposure, 1))) }; }
+function settings(value: unknown): RenderSettings { const v = isRecord(value) ? value : {}; return { debug: v.debug !== false, width: Math.max(320, Math.min(v.debug === false ? 1920 : 1280, finite(v.width, 960))), height: Math.max(180, Math.min(v.debug === false ? 1080 : 720, finite(v.height, 540))), fps: Math.max(12, Math.min(90, finite(v.fps, 30))), tone: v.tone === 'aces' ? 'aces' : 'neutral', exposure: Math.max(.1, Math.min(2, finite(v.exposure, 1))) }; }
 async function execute(request: RequestMessage): Promise<unknown> {
   const payload = isRecord(request.payload) ? request.payload : {};
   switch (request.op) {
@@ -21,7 +21,7 @@ async function execute(request: RequestMessage): Promise<unknown> {
     case 'controls.stop': engine.stop(); return engine.status();
     case 'controls.frameAck': engine.acknowledge(finite(payload.id)); return null;
     case 'controls.input': engine.input({ x: finite(payload.x), z: finite(payload.z), keys: Array.isArray(payload.keys) ? payload.keys.filter((key): key is string => typeof key === 'string') : [] }); return null;
-    case 'controls.look': { const current = engine.status().look, delta = isRecord(payload.delta) ? payload.delta : null; engine.look(delta ? current.yaw + finite(delta.yaw) : finite(payload.yaw, current.yaw), delta ? current.pitch + finite(delta.pitch) : finite(payload.pitch, current.pitch)); return payload.brief ? null : engine.status(); }
+    case 'controls.look': { const current = engine.lookState, delta = isRecord(payload.delta) ? payload.delta : null; engine.look(delta ? current.yaw + finite(delta.yaw) : finite(payload.yaw, current.yaw), delta ? current.pitch + finite(delta.pitch) : finite(payload.pitch, current.pitch)); return payload.brief ? null : engine.status(); }
     case 'controls.body': engine.bodyVisible(payload.visible === true); return engine.status();
     default: throw Error('Unknown runtime operation: ' + request.op);
   }
