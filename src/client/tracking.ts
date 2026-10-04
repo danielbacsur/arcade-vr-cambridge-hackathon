@@ -10,9 +10,9 @@ export class TrackingSpace {
   private origin?: Vector3;
   private heading: Quaternion = { x: 0, y: 0, z: 0, w: 1 };
   scale = 1;
-  constructor(public eyeHeight = 1.6) {}
+  constructor(public eyeHeight = 1.6, public standingHeight = eyeHeight) {}
   calibrate(center: Pose, yawDegrees: number): void {
-    this.origin = { ...center.position }; this.scale = this.eyeHeight / Math.max(.8, Math.min(2.2, center.position.y || 1.6));
+    this.origin = { ...center.position }; this.scale = this.standingHeight / Math.max(.8, Math.min(2.2, center.position.y || 1.6));
     const forward = rotate(center.orientation, { x: 0, y: 0, z: -1 });
     const initialYaw = Math.atan2(-forward.x, -forward.z) * 180 / Math.PI;
     const yaw = (yawDegrees - initialYaw) * Math.PI / 360; this.heading = { x: 0, y: Math.sin(yaw), z: 0, w: Math.cos(yaw) };

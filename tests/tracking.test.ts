@@ -8,3 +8,5 @@ describe('stable tracking space', () => {
   it('preserves asymmetric eye aspect using one scale factor', () => { const dimensions = eyeDimensions(2400, 2600); expect(dimensions.height).toBe(2048); expect(dimensions.width / dimensions.height).toBeCloseTo(2400 / 2600, 2); });
   it('normalizes tracking rotations and rejects invalid quaternion magnitudes', () => { expect(normalize({ x: NaN, y: 0, z: 0, w: 0 })).toEqual(rotation); expect(multiply(rotation, { x: 0, y: 2, z: 0, w: 0 }).y).toBe(1); });
 });
+
+it('calibrates floor and eye separation when the character root is a capsule center', () => { const space = new TrackingSpace(.8, 1.7), center = { position: { x: 0, y: 1.7, z: 0 }, orientation: rotation }, root = { x: 0, y: .9, z: 0 }; space.calibrate(center, 0); expect(space.world(center, root).position.y).toBeCloseTo(1.7); expect(space.world({ ...center, position: { x: 0, y: 0, z: 0 } }, root).position.y).toBeCloseTo(0); const left = space.world({ ...center, position: { x: -.032, y: 1.7, z: 0 } }, root), right = space.world({ ...center, position: { x: .032, y: 1.7, z: 0 } }, root); expect(right.position.x - left.position.x).toBeCloseTo(.064); });

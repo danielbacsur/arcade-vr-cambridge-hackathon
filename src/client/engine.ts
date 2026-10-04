@@ -32,6 +32,7 @@ export class EngineController {
   private hands?: RigHands;
   private trackedHands = 0;
   private eyeHeight = 1.6;
+  private standingHeight = 1.6;
   private originalExposure?: number;
   private settings: RenderSettings = { debug: true, width: 960, height: 540, fps: 30, tone: 'neutral', exposure: 1 };
   private keys = new Set<string>();
@@ -79,7 +80,7 @@ export class EngineController {
     if (!this.xrPacket) {
       this.savedXRSettings = { ...this.settings }; this.originalAnimation = a.requestAnimationFrame;
       if (a.frameRequestId) cancelAnimationFrame(a.frameRequestId); a.frameRequestId = undefined; a.requestAnimationFrame = () => {};
-      this.waitingAck = false; this.tracking = new TrackingSpace(this.eyeHeight); this.tracking.calibrate(packet.center, this.yaw);
+      this.waitingAck = false; this.tracking = new TrackingSpace(this.eyeHeight, this.standingHeight); this.tracking.calibrate(packet.center, this.yaw);
       const right = this.rightCamera = new pc.Entity('ArcadeVRRightEye'); a.root.addChild(right); right.addComponent('camera', { layers: [...cam.layers], nearClip: cam.nearClip, farClip: cam.farClip, clearColor: cam.clearColor, priority: cam.priority + 1 });
       if (right.camera) { right.camera.gammaCorrection = cam.gammaCorrection; right.camera.toneMapping = cam.toneMapping; }
       const device = a.graphicsDevice.wgpu;
@@ -150,7 +151,7 @@ export class EngineController {
     const p = player(), pc = window.pc, a = this.application, cam = this.headCamera?.camera;
     if (!this.connected || !p || !pc || !a || !cam) return;
     if (performance.now() - this.lastInput > 750) this.release(); this.afterRender();
-    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = graphNodes(p); this.hands = new RigHands(children); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); }
+    if (p !== this.tracked) { this.restoreBody(); this.tracked = p; this.headReference = undefined; const children = graphNodes(p); this.hands = new RigHands(children); this.head = children.find(node => /^(mixamorig:)?head$/i.test(node.name)); this.avatarYaw = children.find(node => /_MoldYaw$/.test(node.name)); this.eyeHeight = Math.max(.4, Math.min(4, this.head ? this.head.getPosition().y - p.getPosition().y + .08 : 1.6)); const feet = children.filter(node => /^(mixamorig:)?(Left|Right)(Foot|ToeBase)$/i.test(node.name)); this.standingHeight = this.head && feet.length ? Math.max(.4, Math.min(10, this.head.getPosition().y - Math.min(...feet.map(node => node.getPosition().y)) + .08)) : this.eyeHeight; if (this.tracking && this.xrPacket) { this.tracking.eyeHeight = this.eyeHeight; this.tracking.standingHeight = this.standingHeight; this.tracking.calibrate(this.xrPacket.center, this.yaw); } }
     for (const entity of nodes(p)) for (const mesh of [...entity.render?.meshInstances || [], ...entity.model?.meshInstances || []]) if (!this.body.has(mesh)) {
       const saved = { visible: mesh.isVisibleFunc, cull: mesh.cull }; this.body.set(mesh, saved); mesh.cull = true;
       mesh.isVisibleFunc = (view: PC.Camera) => this.hiddenBody && (view === cam.camera || view === this.rightCamera?.camera?.camera) ? false : saved.visible ? saved.visible.call(mesh, view) : !saved.cull || view.frustum.containsAabb(mesh.aabb);
